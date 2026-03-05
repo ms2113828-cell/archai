@@ -1,0 +1,15 @@
+{
+  "users": [
+    {
+      "id": "9bdf6ecc800aa7f0",
+      "name": "Mani Deepak",
+      "email": "ms2113828@gmail.com",
+      "password_hash": "$2a$10$sRhxTDfjGv0JYvLsVUc/B.7uS0viQhR8Eri0llVEfDgPN2ttLuFRi",
+      "plan": "free",
+      "analyses_today": 1,
+      "analyses_total": 2,
+      "last_reset": "2026-03-05",
+      "created_at": "2026-03-04T11:17:27.515Z"
+    }
+  ]
+}

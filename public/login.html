@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ArchAI — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#03030a;--surface:rgba(10,10,20,.85);--border:rgba(100,80,255,.2);
+      --accent:#6c4fff;--accent2:#a78bfa;--neon:#00f5ff;--green:#00ff9d;
+      --red:#ff4757;--text:#e8e8f8;--muted:#5a5a7a;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow:hidden}
+
+    .bg-canvas{position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse at 20% 50%,rgba(108,79,255,.15) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(0,245,255,.08) 0%,transparent 50%),radial-gradient(ellipse at 60% 80%,rgba(255,0,170,.06) 0%,transparent 50%),#03030a}
+    .bg-canvas::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(108,79,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(108,79,255,.06) 1px,transparent 1px);background-size:60px 60px;animation:gridMove 20s linear infinite}
+    @keyframes gridMove{0%{background-position:0 0}100%{background-position:60px 60px}}
+
+    .orb{position:fixed;border-radius:50%;filter:blur(80px);animation:orbFloat linear infinite;pointer-events:none;z-index:0}
+    .orb1{width:400px;height:400px;background:rgba(108,79,255,.12);top:-100px;left:-100px;animation-duration:25s}
+    .orb2{width:300px;height:300px;background:rgba(0,245,255,.08);bottom:-50px;right:-50px;animation-duration:30s;animation-delay:-10s}
+    @keyframes orbFloat{0%,100%{transform:translate(0,0)}25%{transform:translate(30px,-40px)}50%{transform:translate(-20px,30px)}75%{transform:translate(40px,20px)}}
+
+    .particles{position:fixed;inset:0;z-index:0;pointer-events:none}
+    .particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--accent2);opacity:0;animation:particleFly linear infinite}
+    @keyframes particleFly{0%{opacity:0;transform:translateY(100vh)}10%{opacity:.8}90%{opacity:.4}100%{opacity:0;transform:translateY(-100px) translateX(var(--drift))}}
+
+    .scan-line{position:fixed;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,245,255,.3),transparent);z-index:1;pointer-events:none;animation:scanDown 8s linear infinite}
+    @keyframes scanDown{0%{top:-2px;opacity:0}5%{opacity:1}95%{opacity:1}100%{top:100vh;opacity:0}}
+
+    .container{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;width:100%;max-width:440px;animation:containerReveal .8s cubic-bezier(.16,1,.3,1) both}
+    @keyframes containerReveal{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+
+    .logo{font-family:'Orbitron',monospace;font-size:2.8rem;font-weight:900;letter-spacing:.1em;background:linear-gradient(135deg,#fff 0%,var(--accent2) 40%,var(--neon) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 30px rgba(108,79,255,.5));animation:logoPulse 3s ease-in-out infinite;text-align:center;margin-bottom:8px}
+    @keyframes logoPulse{0%,100%{filter:drop-shadow(0 0 20px rgba(108,79,255,.4))}50%{filter:drop-shadow(0 0 40px rgba(108,79,255,.8)) drop-shadow(0 0 80px rgba(0,245,255,.3))}}
+
+    .tagline{font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.25em;text-transform:uppercase;color:var(--neon);opacity:.7;margin-bottom:12px;animation:taglineGlow 2s ease-in-out infinite}
+    @keyframes taglineGlow{0%,100%{opacity:.5}50%{opacity:.9;text-shadow:0 0 10px var(--neon)}}
+
+    .status{display:flex;align-items:center;gap:8px;font-family:'Space Mono',monospace;font-size:.6rem;color:var(--green);letter-spacing:.1em;margin-bottom:32px;padding:6px 14px;border:1px solid rgba(0,255,157,.2);border-radius:100px;background:rgba(0,255,157,.05)}
+    .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:statusPulse 1.5s ease-in-out infinite}
+    @keyframes statusPulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:36px;width:100%;backdrop-filter:blur(20px);position:relative;overflow:hidden;box-shadow:0 0 60px rgba(108,79,255,.1),0 20px 60px rgba(0,0,0,.5)}
+    .card::before{content:'';position:absolute;top:0;left:0;width:60px;height:60px;border-top:2px solid var(--neon);border-left:2px solid var(--neon);border-radius:24px 0 0 0;opacity:.5}
+    .card::after{content:'';position:absolute;bottom:0;right:0;width:60px;height:60px;border-bottom:2px solid var(--accent);border-right:2px solid var(--accent);border-radius:0 0 24px 0;opacity:.5}
+
+    .tabs{display:flex;gap:4px;margin-bottom:28px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:4px}
+    .tab{flex:1;padding:10px;border:none;background:transparent;color:var(--muted);font-family:'Orbitron',monospace;font-size:.62rem;font-weight:700;letter-spacing:.08em;cursor:pointer;border-radius:8px;transition:all .3s;text-transform:uppercase}
+    .tab.active{background:linear-gradient(135deg,var(--accent),#9333ea);color:#fff;box-shadow:0 4px 20px rgba(108,79,255,.4)}
+    .tab:not(.active):hover{color:var(--text);background:rgba(255,255,255,.05)}
+
+    .form-group{margin-bottom:20px}
+    label{display:block;font-size:.65rem;color:var(--neon);opacity:.7;letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;font-family:'Space Mono',monospace}
+    input{width:100%;background:rgba(255,255,255,.03);border:1px solid rgba(108,79,255,.2);border-radius:10px;color:var(--text);font-family:'Space Mono',monospace;font-size:.8rem;padding:13px 16px;outline:none;transition:all .3s}
+    input:focus{border-color:var(--accent);background:rgba(108,79,255,.05);box-shadow:0 0 20px rgba(108,79,255,.15)}
+    input::placeholder{color:var(--muted);font-size:.75rem}
+
+    .btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--accent) 0%,#9333ea 50%,var(--accent) 100%);background-size:200% 100%;border:none;border-radius:12px;color:#fff;font-family:'Orbitron',monospace;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .3s;margin-top:8px;position:relative;overflow:hidden}
+    .btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(108,79,255,.5)}
+    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+
+    .error{display:none;padding:12px 16px;background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;color:var(--red);font-size:.72rem;margin-bottom:16px;font-family:'Space Mono',monospace}
+    .error.visible{display:block;animation:shake .4s ease}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+    .success{display:none;padding:12px 16px;background:rgba(0,255,157,.06);border:1px solid rgba(0,255,157,.3);border-radius:8px;color:var(--green);font-size:.72rem;margin-bottom:16px;font-family:'Space Mono',monospace}
+    .success.visible{display:block}
+
+    .free-badge{text-align:center;margin-top:24px;padding:14px;background:rgba(108,79,255,.06);border:1px solid rgba(108,79,255,.15);border-radius:12px}
+    .free-badge p:first-child{font-family:'Orbitron',monospace;font-size:.72rem;font-weight:700;color:var(--accent2);margin-bottom:5px;letter-spacing:.05em}
+    .free-badge p:last-child{font-size:.65rem;color:var(--muted);font-family:'Space Mono',monospace}
+
+    .bottom-text{margin-top:20px;text-align:center;font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted)}
+  </style>
+</head>
+<body>
+<div class="bg-canvas"></div>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="scan-line"></div>
+<div class="particles" id="particles"></div>
+
+<div class="container">
+  <div class="logo">ARCH<span style="-webkit-text-fill-color:var(--neon);filter:drop-shadow(0 0 20px var(--neon))">AI</span></div>
+  <div class="tagline">// Deep Code Intelligence Engine</div>
+  <div class="status"><div class="status-dot"></div>SYSTEM ONLINE — ALL LAYERS ACTIVE</div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('login')" id="tab-login">Sign In</button>
+      <button class="tab" onclick="switchTab('register')" id="tab-register">Create Account</button>
+    </div>
+
+    <div id="error-msg" class="error"></div>
+    <div id="success-msg" class="success"></div>
+
+    <div id="form-login">
+      <div class="form-group">
+        <label>// Email Address</label>
+        <input type="email" id="login-email" placeholder="you@example.com"/>
+      </div>
+      <div class="form-group">
+        <label>// Password</label>
+        <input type="password" id="login-password" placeholder="••••••••"/>
+      </div>
+      <button class="btn" onclick="handleLogin()" id="login-btn">→ Initialize Session</button>
+    </div>
+
+    <div id="form-register" style="display:none">
+      <div class="form-group">
+        <label>// Full Name</label>
+        <input type="text" id="reg-name" placeholder="Your name"/>
+      </div>
+      <div class="form-group">
+        <label>// Email Address</label>
+        <input type="email" id="reg-email" placeholder="you@example.com"/>
+      </div>
+      <div class="form-group">
+        <label>// Password</label>
+        <input type="password" id="reg-password" placeholder="Min 6 characters"/>
+      </div>
+      <button class="btn" onclick="handleRegister()" id="register-btn">→ Deploy Account</button>
+    </div>
+
+    <div class="free-badge">
+      <p>⚡ FREE TIER ACTIVE</p>
+      <p>5 deep analyses per day — no credit card required</p>
+    </div>
+  </div>
+  <div class="bottom-text">ARCHAI v4.0 — SECURED WITH JWT ENCRYPTION</div>
+</div>
+
+<script>
+  // Particles
+  const pc = document.getElementById('particles');
+  for(let i=0;i<40;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.style.cssText=`left:${Math.random()*100}%;--drift:${(Math.random()-.5)*200}px;animation-duration:${8+Math.random()*12}s;animation-delay:${-Math.random()*20}s;background:${Math.random()>.5?'#a78bfa':'#00f5ff'};`;
+    pc.appendChild(p);
+  }
+
+  if(localStorage.getItem('archai_token')) window.location.href='/';
+
+  function switchTab(tab){
+    document.getElementById('form-login').style.display=tab==='login'?'block':'none';
+    document.getElementById('form-register').style.display=tab==='register'?'block':'none';
+    document.getElementById('tab-login').classList.toggle('active',tab==='login');
+    document.getElementById('tab-register').classList.toggle('active',tab==='register');
+    hideMessages();
+  }
+  function showError(msg){const e=document.getElementById('error-msg');e.textContent='⚠ '+msg;e.classList.add('visible');document.getElementById('success-msg').classList.remove('visible')}
+  function showSuccess(msg){const e=document.getElementById('success-msg');e.textContent='✓ '+msg;e.classList.add('visible');document.getElementById('error-msg').classList.remove('visible')}
+  function hideMessages(){document.getElementById('error-msg').classList.remove('visible');document.getElementById('success-msg').classList.remove('visible')}
+
+  async function handleLogin(){
+    const email=document.getElementById('login-email').value.trim();
+    const password=document.getElementById('login-password').value;
+    if(!email||!password){showError('Email and password required.');return;}
+    const btn=document.getElementById('login-btn');
+    btn.disabled=true;btn.textContent='⟳ Authenticating...';
+    try{
+      const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error);
+      localStorage.setItem('archai_token',data.token);
+      localStorage.setItem('archai_user',JSON.stringify(data.user));
+      showSuccess('Authentication successful. Loading...');
+      setTimeout(()=>window.location.href='/',1200);
+    }catch(err){showError(err.message);btn.disabled=false;btn.textContent='→ Initialize Session';}
+  }
+
+  async function handleRegister(){
+    const name=document.getElementById('reg-name').value.trim();
+    const email=document.getElementById('reg-email').value.trim();
+    const password=document.getElementById('reg-password').value;
+    if(!name||!email||!password){showError('All fields required.');return;}
+    if(password.length<6){showError('Password must be at least 6 characters.');return;}
+    const btn=document.getElementById('register-btn');
+    btn.disabled=true;btn.textContent='⟳ Deploying...';
+    try{
+      const res=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error);
+      localStorage.setItem('archai_token',data.token);
+      localStorage.setItem('archai_user',JSON.stringify(data.user));
+      showSuccess('Account deployed! Welcome to ArchAI!');
+      setTimeout(()=>window.location.href='/',1200);
+    }catch(err){showError(err.message);btn.disabled=false;btn.textContent='→ Deploy Account';}
+  }
+
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      const loginVisible=document.getElementById('form-login').style.display!=='none';
+      if(loginVisible)handleLogin();else handleRegister();
+    }
+  });
+</script>
+</body>
+</html>
