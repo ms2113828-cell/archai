@@ -122,6 +122,10 @@
         <label>// Password</label>
         <input type="password" id="reg-password" placeholder="Min 6 characters"/>
       </div>
+      <div class="form-group">
+        <label>// Re-enter Password</label>
+        <input type="password" id="reg-password2" placeholder="Confirm your password"/>
+      </div>
       <button class="btn" onclick="handleRegister()" id="register-btn">→ Deploy Account</button>
     </div>
 
@@ -143,7 +147,7 @@
     pc.appendChild(p);
   }
 
-  if(localStorage.getItem('archai_token')) window.location.href='/';
+  if(localStorage.getItem('archai_token') && window.location.pathname !== '/') window.location.href='/';
 
   function switchTab(tab){
     document.getElementById('form-login').style.display=tab==='login'?'block':'none';
@@ -179,6 +183,8 @@
     const password=document.getElementById('reg-password').value;
     if(!name||!email||!password){showError('All fields required.');return;}
     if(password.length<6){showError('Password must be at least 6 characters.');return;}
+    const password2=document.getElementById('reg-password2').value;
+    if(password!==password2){showError('Passwords do not match!');return;}
     const btn=document.getElementById('register-btn');
     btn.disabled=true;btn.textContent='⟳ Deploying...';
     try{
