@@ -12,7 +12,7 @@
       --red:#ff4757;--text:#e8e8f8;--muted:#5a5a7a;
     }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow:hidden}
+    body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
 
     .bg-canvas{position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse at 20% 50%,rgba(108,79,255,.15) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(0,245,255,.08) 0%,transparent 50%),radial-gradient(ellipse at 60% 80%,rgba(255,0,170,.06) 0%,transparent 50%),#03030a}
     .bg-canvas::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(108,79,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(108,79,255,.06) 1px,transparent 1px);background-size:60px 60px;animation:gridMove 20s linear infinite}
@@ -134,7 +134,12 @@
       <p>5 deep analyses per day — no credit card required</p>
     </div>
   </div>
-  <div class="bottom-text">ARCHAI v4.0 — SECURED WITH JWT ENCRYPTION</div>
+  <div style="margin-top:16px;text-align:center">
+    <button onclick="window.location.href='/guest.html'" style="background:transparent;border:1px solid rgba(0,245,255,.3);border-radius:10px;color:#00f5ff;font-family:'Space Mono',monospace;font-size:.65rem;padding:10px 20px;cursor:pointer;width:100%;transition:all .3s;letter-spacing:.05em" onmouseover="this.style.background='rgba(0,245,255,.05)'" onmouseout="this.style.background='transparent'">
+      ⚡ Try 1 Free Analysis — No Signup Required
+    </button>
+  </div>
+  <div class="bottom-text" style="margin-top:12px">ARCHAI v4.0 — SECURED WITH JWT ENCRYPTION</div>
 </div>
 
 <script>
@@ -147,7 +152,7 @@
     pc.appendChild(p);
   }
 
-  if(localStorage.getItem('archai_token') && window.location.pathname !== '/') window.location.href='/';
+  if(localStorage.getItem('archai_token')) window.location.href='/';
 
   function switchTab(tab){
     document.getElementById('form-login').style.display=tab==='login'?'block':'none';

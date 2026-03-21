@@ -17,7 +17,7 @@ const AdmZip    = require('adm-zip');
 const https     = require('https'); // Built into Node.js - fetches GitHub API
 const bcrypt   = require('bcryptjs');
 const Razorpay = require('razorpay');
-const razorpay = new Razorpay({ key_id: 'rzp_test_SNSG8RCUWrwAEk', key_secret: 'KcLngPGTVqcRNYzBE968TcSV' });
+const razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
 const crypto2  = require('crypto'); // for payment verification
 
 const { createUser, getUserByEmail, updateUser } = require('./database');
@@ -385,6 +385,55 @@ Respond ONLY with valid JSON:
 }
 
 // ============================================================
+
+// ── Guest Trial Route (no auth required) ─────────────────────
+let guestTrialUsed = {}; // Track by IP
+
+app.post('/api/guest-analyze', rateLimiter, async (req, res) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  
+  if (guestTrialUsed[ip]) {
+    return res.status(403).json({ error: 'Guest trial already used. Please create a free account for 5 analyses per day!' });
+  }
+
+  const { code } = req.body;
+  if (!code || !code.trim()) return res.status(400).json({ error: 'No code provided.' });
+
+  try {
+    const prompt = `You are ArchAI — a senior code reviewer with 10 years of experience.
+
+Analyze this code in 4 deep layers:
+
+LAYER 1 — UNDERSTAND: What does this code do?
+LAYER 2 — ANALYZE: Bugs, security issues, performance problems
+LAYER 3 — ARCHITECT: Design and structural improvements  
+LAYER 4 — FIX & EXPLAIN: Specific fixes with code examples
+
+Code to analyze:
+\`\`\`
+${code}
+\`\`\`
+
+Be thorough, specific, and actionable.`;
+
+    const message = await anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    guestTrialUsed[ip] = true;
+    
+    // Clear after 24 hours
+    setTimeout(() => { delete guestTrialUsed[ip]; }, 24 * 60 * 60 * 1000);
+
+    res.json({ result: message.content[0].text, guest: true });
+  } catch (err) {
+    console.error('Guest analysis error:', err.message);
+    res.status(500).json({ error: 'Analysis failed. Please try again.' });
+  }
+});
+
 // ROUTE 1: Single File — POST /api/analyze
 // ============================================================
 app.post('/api/analyze', rateLimiter, requireAuth, async (req, res) => {

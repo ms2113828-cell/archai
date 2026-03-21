@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ArchAI — Free Trial</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#03030a;--surface:rgba(10,10,20,.85);--border:rgba(100,80,255,.2);
+      --accent:#6c4fff;--accent2:#a78bfa;--neon:#00f5ff;--green:#00ff9d;
+      --red:#ff4757;--text:#ffffff;--muted:#a0b4d0;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#060d2a;color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;padding:20px}
+
+    .bg-canvas{position:fixed;inset:0;z-index:0;
+      background:radial-gradient(ellipse at 20% 50%,rgba(108,79,255,.15) 0%,transparent 60%),
+      radial-gradient(ellipse at 80% 20%,rgba(0,245,255,.08) 0%,transparent 50%),#060d2a}
+    .bg-canvas::before{content:'';position:absolute;inset:0;
+      background-image:linear-gradient(rgba(108,79,255,.06) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(108,79,255,.06) 1px,transparent 1px);
+      background-size:60px 60px}
+
+    .container{position:relative;z-index:2;max-width:800px;margin:0 auto}
+
+    /* Header */
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(108,79,255,.2)}
+    .logo{font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:900;
+      background:linear-gradient(135deg,#fff,var(--accent2),var(--neon));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .trial-badge{background:rgba(0,255,157,.1);border:1px solid rgba(0,255,157,.3);
+      border-radius:100px;padding:4px 14px;font-family:'Space Mono',monospace;
+      font-size:.6rem;color:var(--green);letter-spacing:.1em}
+
+    /* Trial banner */
+    .trial-banner{background:rgba(108,79,255,.08);border:1px solid rgba(108,79,255,.2);
+      border-radius:12px;padding:14px 20px;margin-bottom:20px;
+      display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .trial-text{font-size:.85rem;color:var(--text)}
+    .trial-text span{color:var(--accent2);font-weight:700}
+    .signup-btn{background:linear-gradient(135deg,var(--accent),#9333ea);border:none;
+      border-radius:8px;color:#fff;font-family:'Orbitron',monospace;font-size:.6rem;
+      font-weight:700;padding:8px 16px;cursor:pointer;white-space:nowrap;letter-spacing:.05em}
+    .signup-btn:hover{opacity:.9}
+
+    /* Code area */
+    .card{background:rgba(10,15,46,.85);border:1px solid rgba(108,79,255,.2);
+      border-radius:16px;padding:24px;margin-bottom:16px;
+      backdrop-filter:blur(20px)}
+
+    .section-label{font-family:'Space Mono',monospace;font-size:.65rem;
+      color:var(--neon);opacity:.8;letter-spacing:.15em;text-transform:uppercase;
+      margin-bottom:10px}
+
+    textarea{width:100%;background:rgba(255,255,255,.03);border:1px solid rgba(108,79,255,.2);
+      border-radius:10px;color:var(--text);font-family:'Space Mono',monospace;
+      font-size:.78rem;padding:14px;outline:none;resize:vertical;
+      min-height:200px;line-height:1.6;transition:border-color .3s}
+    textarea:focus{border-color:var(--accent);background:rgba(108,79,255,.04)}
+    textarea::placeholder{color:var(--muted);font-size:.72rem}
+
+    .analyze-btn{width:100%;padding:15px;
+      background:linear-gradient(135deg,var(--accent),#9333ea);
+      border:none;border-radius:12px;color:#fff;
+      font-family:'Orbitron',monospace;font-size:.75rem;font-weight:700;
+      letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
+      transition:all .3s;margin-top:12px}
+    .analyze-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(108,79,255,.5)}
+    .analyze-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+    /* Results */
+    .results{display:none}
+    .result-card{background:rgba(10,15,46,.85);border:1px solid rgba(108,79,255,.2);
+      border-radius:16px;padding:24px;margin-bottom:16px;
+      backdrop-filter:blur(20px)}
+    .result-text{font-size:.88rem;color:var(--text);line-height:1.8;white-space:pre-wrap;font-family:'Rajdhani',sans-serif}
+
+    /* Loading */
+    .loading{display:none;text-align:center;padding:40px}
+    .loading-text{font-family:'Space Mono',monospace;font-size:.75rem;color:var(--accent2);
+      letter-spacing:.1em;animation:pulse 1.5s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+    /* Error */
+    .error-box{display:none;padding:14px;background:rgba(255,71,87,.08);
+      border:1px solid rgba(255,71,87,.3);border-radius:10px;
+      color:var(--red);font-family:'Space Mono',monospace;font-size:.75rem;
+      margin-top:12px;line-height:1.6}
+    .error-box.visible{display:block}
+
+    /* Signup prompt after trial */
+    .signup-prompt{display:none;background:linear-gradient(135deg,rgba(108,79,255,.15),rgba(0,245,255,.08));
+      border:1px solid rgba(108,79,255,.3);border-radius:16px;
+      padding:28px;text-align:center;margin-top:20px}
+    .signup-prompt h3{font-family:'Orbitron',monospace;font-size:1rem;
+      color:var(--accent2);margin-bottom:8px;letter-spacing:.05em}
+    .signup-prompt p{font-size:.85rem;color:var(--muted);margin-bottom:20px;line-height:1.6}
+    .signup-prompt-btn{background:linear-gradient(135deg,var(--accent),#9333ea);
+      border:none;border-radius:12px;color:#fff;
+      font-family:'Orbitron',monospace;font-size:.75rem;font-weight:700;
+      padding:14px 32px;cursor:pointer;letter-spacing:.08em;margin:6px}
+    .login-link{background:transparent;border:1px solid rgba(108,79,255,.3);
+      border-radius:12px;color:var(--accent2);
+      font-family:'Space Mono',monospace;font-size:.7rem;
+      padding:12px 24px;cursor:pointer;margin:6px}
+
+    .features{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+    .feature{font-size:.75rem;color:var(--green);font-family:'Space Mono',monospace}
+  </style>
+</head>
+<body>
+<div class="bg-canvas"></div>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">ARCH<span style="-webkit-text-fill-color:var(--neon)">AI</span></div>
+    <div class="trial-badge">⚡ FREE TRIAL</div>
+  </div>
+
+  <!-- Trial Banner -->
+  <div class="trial-banner">
+    <div class="trial-text">You have <span>1 free analysis</span> — no account needed! Create a free account for <span>5 analyses/day.</span></div>
+    <button class="signup-btn" onclick="window.location.href='/login.html'">Create Free Account</button>
+  </div>
+
+  <!-- Code Input -->
+  <div class="card" id="input-section">
+    <div class="section-label">// Paste Your Code Below</div>
+    <textarea id="code-input" placeholder="Paste any code here — JavaScript, Python, Java, C#, PHP, or any language...
+
+Example:
+function login(username, password) {
+  const query = 'SELECT * FROM users WHERE user=' + username;
+  return db.execute(query);
+}"></textarea>
+
+    <div class="error-box" id="error-box"></div>
+
+    <button class="analyze-btn" id="analyze-btn" onclick="analyzeCode()">
+      → Analyze My Code — Free
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="loading-text">⟳ ArchAI is thinking in 4 layers...</div>
+    <div style="margin-top:12px;font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted)">
+      Layer 1: Understanding → Layer 2: Analyzing → Layer 3: Architecture → Layer 4: Fixing
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+    <div class="result-card">
+      <div class="section-label">// Analysis Complete — 4 Layer Deep Review</div>
+      <div class="result-text" id="result-text"></div>
+    </div>
+
+    <!-- Signup Prompt -->
+    <div class="signup-prompt" id="signup-prompt">
+      <h3>⚡ Want More Analyses?</h3>
+      <p>Your free trial is complete! Create a free account to get <strong style="color:var(--accent2)">5 deep analyses every day</strong> — completely free, no credit card required!</p>
+      <div>
+        <button class="signup-prompt-btn" onclick="window.location.href='/login.html#register'">🚀 Create Free Account</button>
+        <button class="login-link" onclick="window.location.href='/login.html'">Already have account? Sign In</button>
+      </div>
+      <div class="features">
+        <span class="feature">✓ 5 analyses/day free</span>
+        <span class="feature">✓ All 3 modes</span>
+        <span class="feature">✓ No credit card</span>
+        <span class="feature">✓ Instant access</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // If already logged in — redirect to main app
+  if (localStorage.getItem('archai_token')) {
+    window.location.href = '/';
+  }
+
+  let trialUsed = false;
+
+  async function analyzeCode() {
+    const code = document.getElementById('code-input').value.trim();
+
+    if (!code) {
+      showError('Please paste some code to analyze!');
+      return;
+    }
+
+    if (trialUsed) {
+      showError('Trial already used! Please create a free account for more analyses.');
+      return;
+    }
+
+    const btn = document.getElementById('analyze-btn');
+    btn.disabled = true;
+    btn.textContent = '⟳ Analyzing...';
+    document.getElementById('error-box').classList.remove('visible');
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('input-section').style.opacity = '0.5';
+
+    try {
+      const res = await fetch('/api/guest-analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(data.error || 'Analysis failed. Please try again.');
+        btn.disabled = false;
+        btn.textContent = '→ Analyze My Code — Free';
+        document.getElementById('input-section').style.opacity = '1';
+        document.getElementById('loading').style.display = 'none';
+        return;
+      }
+
+      trialUsed = true;
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('result-text').textContent = data.result;
+      document.getElementById('signup-prompt').style.display = 'block';
+      document.getElementById('input-section').style.opacity = '1';
+      btn.textContent = '✓ Trial Used — Create Account for More';
+
+    } catch (err) {
+      showError('Connection error. Please try again.');
+      btn.disabled = false;
+      btn.textContent = '→ Analyze My Code — Free';
+      document.getElementById('input-section').style.opacity = '1';
+      document.getElementById('loading').style.display = 'none';
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-box');
+    el.textContent = '⚠ ' + msg;
+    el.classList.add('visible');
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') analyzeCode();
+  });
+</script>
+</body>
+</html>
