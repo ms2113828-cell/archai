@@ -10,6 +10,50 @@
       "analyses_total": 2,
       "last_reset": "2026-03-11",
       "created_at": "2026-03-04T11:17:27.515Z"
+    },
+    {
+      "id": "82de25d5dd7144d4",
+      "name": "TestUser",
+      "email": "testuser123@gmail.com",
+      "password_hash": "$2a$10$aZNyKrEQghymWViB.dN90eI4OyJt/0qUVgXkTq.uX7/B.O5Tmb0V2",
+      "plan": "free",
+      "analyses_today": 0,
+      "analyses_total": 0,
+      "last_reset": "2026-03-21",
+      "created_at": "2026-03-21T14:17:15.324Z"
+    },
+    {
+      "id": "8dd9d98bbd314d4d",
+      "name": "Saritha",
+      "email": "sarithanithin123@gmail.com",
+      "password_hash": "$2a$10$chXZNggExtiN7CATqHDxuOFzZAz/oYWVuif/RotwCXnk5YIIQtsKK",
+      "plan": "free",
+      "analyses_today": 0,
+      "analyses_total": 0,
+      "last_reset": "2026-03-29",
+      "created_at": "2026-03-29T11:47:10.767Z"
+    },
+    {
+      "id": "49c20dd57d99ebd1",
+      "name": "Bharath Kumar",
+      "email": "barathpatel01@gmail.com",
+      "password_hash": "$2a$10$ZMKa42D.OpT8s.w.LQQ3/.n1SJ6bABn9IHcd/XM74uX/uoAb2JpWa",
+      "plan": "free",
+      "analyses_today": 0,
+      "analyses_total": 0,
+      "last_reset": "2026-03-29",
+      "created_at": "2026-03-29T12:15:31.738Z"
+    },
+    {
+      "id": "403b9613dd6993de",
+      "name": "Deepak",
+      "email": "manideepakpattlolla@gmail.com",
+      "password_hash": "$2a$10$I/drNKmyA0hRiIqM1fxgd.KPgQaSTs9NR4dvrCV4.6sc2ZY10Xdea",
+      "plan": "free",
+      "analyses_today": 0,
+      "analyses_total": 0,
+      "last_reset": "2026-03-29",
+      "created_at": "2026-03-29T12:43:43.238Z"
     }
   ]
 }

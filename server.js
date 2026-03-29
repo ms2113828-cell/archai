@@ -19,6 +19,19 @@ const bcrypt   = require('bcryptjs');
 const Razorpay = require('razorpay');
 const razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
 const crypto2  = require('crypto'); // for payment verification
+const nodemailer = require('nodemailer');
+
+// ── Email Transporter ─────────────────────────────────────
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  }
+});
+
+// Store pending verifications
+const pendingVerifications = {};
 
 const { createUser, getUserByEmail, updateUser } = require('./database');
 const { generateToken, requireAuth, incrementUsage, FREE_DAILY_LIMIT } = require('./auth');
@@ -386,6 +399,77 @@ Respond ONLY with valid JSON:
 
 // ============================================================
 
+
+// ── Email Verification Routes ─────────────────────────────
+app.post('/api/auth/send-verification', async (req, res) => {
+  const { email, name } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  const token = crypto2.randomBytes(32).toString('hex');
+  pendingVerifications[token] = { email, name, expires: Date.now() + 24*60*60*1000 };
+
+  const verifyUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/verify-email?token=${token}`;
+
+  try {
+    await transporter.sendMail({
+      from: `"ArchAI" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: '⚡ Verify your ArchAI account',
+      html: `
+        <div style="background:#03030a;padding:40px;font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <h1 style="color:#a78bfa;font-size:28px;margin-bottom:4px">ARCHAI</h1>
+          <p style="color:#5a5a7a;font-size:12px;margin-bottom:30px;letter-spacing:2px">DEEP CODE INTELLIGENCE ENGINE</p>
+          <h2 style="color:#ffffff;font-size:20px">Welcome, ${name}! 👋</h2>
+          <p style="color:#a0b4d0;line-height:1.6">Thank you for joining ArchAI! Please verify your email to activate your free account with 5 deep analyses per day.</p>
+          <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#6c4fff,#9333ea);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;margin:20px 0;font-size:14px">⚡ Verify My Email</a>
+          <p style="color:#5a5a7a;font-size:12px">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
+          <hr style="border-color:#1e3a6e;margin:20px 0">
+          <p style="color:#5a5a7a;font-size:11px">ArchAI — Code That Thinks Before It Fixes</p>
+        </div>
+      `
+    });
+    res.json({ success: true, message: 'Verification email sent!' });
+  } catch (err) {
+    console.error('Email error:', err.message);
+    res.status(500).json({ error: 'Failed to send email. Please try again.' });
+  }
+});
+
+app.get('/api/auth/verify-email', async (req, res) => {
+  const { token } = req.query;
+  const pending = pendingVerifications[token];
+
+  if (!pending) {
+    return res.send(`<html><body style="background:#03030a;color:#fff;font-family:Arial;text-align:center;padding:60px">
+      <h2 style="color:#ff4757">❌ Invalid or expired verification link</h2>
+      <p style="color:#a0b4d0">Please register again at <a href="/login.html" style="color:#a78bfa">ArchAI</a></p>
+    </body></html>`);
+  }
+
+  if (Date.now() > pending.expires) {
+    delete pendingVerifications[token];
+    return res.send(`<html><body style="background:#03030a;color:#fff;font-family:Arial;text-align:center;padding:60px">
+      <h2 style="color:#ff4757">❌ Verification link expired</h2>
+      <p style="color:#a0b4d0">Please register again at <a href="/login.html" style="color:#a78bfa">ArchAI</a></p>
+    </body></html>`);
+  }
+
+  // Mark email as verified in database
+  const user = getUserByEmail(pending.email);
+  if (user) {
+    updateUser(user.id, { email_verified: true });
+  }
+
+  delete pendingVerifications[token];
+
+  res.send(`<html><body style="background:#03030a;color:#fff;font-family:Arial;text-align:center;padding:60px">
+    <h1 style="color:#a78bfa;font-size:32px">ARCHAI</h1>
+    <h2 style="color:#00ff9d">✓ Email Verified Successfully!</h2>
+    <p style="color:#a0b4d0">Your account is now active. You have 5 free analyses per day!</p>
+    <a href="/login.html" style="display:inline-block;background:linear-gradient(135deg,#6c4fff,#9333ea);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;margin:20px 0">→ Sign In to ArchAI</a>
+  </body></html>`);
+});
+
 // ── Guest Trial Route (no auth required) ─────────────────────
 let guestTrialUsed = {}; // Track by IP
 
@@ -658,7 +742,8 @@ app.post('/api/auth/register', async (req, res) => {
     const token = generateToken(user.id);
 
     console.log(`✅ New user registered: ${email}`);
-    res.json({ success: true, token, user, freeLimit: FREE_DAILY_LIMIT });
+await transporter.sendMail({ from: `"ArchAI" <${process.env.EMAIL_USER}>`, to: email, subject: '⚡ Verify your ArchAI account', html: `<h1>Welcome ${name}!</h1><p>Your ArchAI account is created successfully!</p>` });
+    res.json({ sugcess: true, token, user, freeLimit: FREE_DAILY_LIMIT });
 
   } catch (err) {
     console.error('Register error:', err.message);

@@ -198,7 +198,7 @@
       if(!res.ok)throw new Error(data.error);
       localStorage.setItem('archai_token',data.token);
       localStorage.setItem('archai_user',JSON.stringify(data.user));
-      showSuccess('Account deployed! Welcome to ArchAI!');
+      showSuccess('Account created! Please check your email to verify your account!');
       setTimeout(()=>window.location.href='/',1200);
     }catch(err){showError(err.message);btn.disabled=false;btn.textContent='→ Deploy Account';}
   }
