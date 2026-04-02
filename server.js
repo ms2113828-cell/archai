@@ -31,9 +31,9 @@ const transporter = nodemailer.createTransport({
 });
 
 // Store pending verifications
-const pendingVerifications = {};
+// (Now persisted in database — see database.js)
 
-const { createUser, getUserByEmail, updateUser } = require('./database');
+const { createUser, getUserByEmail, updateUser, saveVerificationToken, getVerificationToken, deleteVerificationToken, deleteVerificationTokensByEmail } = require('./database');
 const { generateToken, requireAuth, incrementUsage, FREE_DAILY_LIMIT } = require('./auth');
 
 const app  = express();
@@ -401,73 +401,146 @@ Respond ONLY with valid JSON:
 
 
 // ── Email Verification Routes ─────────────────────────────
-app.post('/api/auth/send-verification', async (req, res) => {
-  const { email, name } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email required' });
 
-  const token = crypto2.randomBytes(32).toString('hex');
-  pendingVerifications[token] = { email, name, expires: Date.now() + 24*60*60*1000 };
-
+// Helper: Send verification email with token
+async function sendVerificationEmail(email, name, token) {
   const verifyUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/verify-email?token=${token}`;
 
-  try {
-    await transporter.sendMail({
-      from: `"ArchAI" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: '⚡ Verify your ArchAI account',
-      html: `
-        <div style="background:#03030a;padding:40px;font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-          <h1 style="color:#a78bfa;font-size:28px;margin-bottom:4px">ARCHAI</h1>
-          <p style="color:#5a5a7a;font-size:12px;margin-bottom:30px;letter-spacing:2px">DEEP CODE INTELLIGENCE ENGINE</p>
-          <h2 style="color:#ffffff;font-size:20px">Welcome, ${name}! 👋</h2>
-          <p style="color:#a0b4d0;line-height:1.6">Thank you for joining ArchAI! Please verify your email to activate your free account with 5 deep analyses per day.</p>
-          <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#6c4fff,#9333ea);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;margin:20px 0;font-size:14px">⚡ Verify My Email</a>
-          <p style="color:#5a5a7a;font-size:12px">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
-          <hr style="border-color:#1e3a6e;margin:20px 0">
-          <p style="color:#5a5a7a;font-size:11px">ArchAI — Code That Thinks Before It Fixes</p>
+  await transporter.sendMail({
+    from: `"ArchAI" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: '⚡ Verify your ArchAI account',
+    html: `
+      <div style="background:#03030a;padding:40px;font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border-radius:16px">
+        <div style="text-align:center">
+          <h1 style="color:#a78bfa;font-size:32px;margin-bottom:4px;font-family:monospace">ARCH<span style="color:#00f5ff">AI</span></h1>
+          <p style="color:#5a5a7a;font-size:11px;margin-bottom:30px;letter-spacing:3px">DEEP CODE INTELLIGENCE ENGINE</p>
         </div>
-      `
-    });
-    res.json({ success: true, message: 'Verification email sent!' });
-  } catch (err) {
-    console.error('Email error:', err.message);
-    res.status(500).json({ error: 'Failed to send email. Please try again.' });
-  }
-});
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(108,79,255,0.2);border-radius:12px;padding:30px;margin-bottom:20px">
+          <h2 style="color:#ffffff;font-size:20px;margin-bottom:12px">Welcome, ${name}! 👋</h2>
+          <p style="color:#a0b4d0;line-height:1.8;font-size:14px">Thank you for joining ArchAI! Please verify your email to activate your free account with <strong style="color:#a78bfa">5 deep analyses per day</strong>.</p>
+          <div style="text-align:center;margin:28px 0">
+            <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#6c4fff,#9333ea);color:#fff;text-decoration:none;padding:16px 40px;border-radius:12px;font-weight:700;font-size:14px;letter-spacing:0.5px">⚡ Verify My Email</a>
+          </div>
+          <p style="color:#5a5a7a;font-size:12px;text-align:center">This link expires in <strong style="color:#a0b4d0">24 hours</strong>.</p>
+        </div>
+        <p style="color:#5a5a7a;font-size:11px;text-align:center">If you didn't create an account, you can safely ignore this email.</p>
+        <hr style="border:none;border-top:1px solid rgba(108,79,255,0.15);margin:20px 0">
+        <p style="color:#5a5a7a;font-size:11px;text-align:center">ArchAI — Code That Thinks Before It Fixes</p>
+      </div>
+    `
+  });
+}
 
+// GET /api/auth/verify-email — User clicks this link from their email
 app.get('/api/auth/verify-email', async (req, res) => {
   const { token } = req.query;
-  const pending = pendingVerifications[token];
 
-  if (!pending) {
-    return res.send(`<html><body style="background:#03030a;color:#fff;font-family:Arial;text-align:center;padding:60px">
-      <h2 style="color:#ff4757">❌ Invalid or expired verification link</h2>
-      <p style="color:#a0b4d0">Please register again at <a href="/login.html" style="color:#a78bfa">ArchAI</a></p>
+  // Check if token exists and is valid
+  const pending = getVerificationToken(token);
+  if (!token || !pending) {
+    return res.send(`<!DOCTYPE html>
+    <html><head><meta charset="UTF-8">
+    <style>
+      body{background:#03030a;color:#fff;font-family:Arial,sans-serif;text-align:center;padding:60px;margin:0}
+      h1{color:#a78bfa;font-size:32px;margin-bottom:4px;font-family:monospace}
+      .tag{color:#5a5a7a;font-size:11px;letter-spacing:3px;margin-bottom:40px}
+      h2{color:#ff4757;font-size:22px;margin-bottom:16px}
+      p{color:#a0b4d0;line-height:1.8;font-size:14px}
+      a{color:#a78bfa;text-decoration:none}
+      a:hover{text-decoration:underline}
+    </style>
+    </head>
+    <body>
+      <h1>ARCH<span style="color:#00f5ff">AI</span></h1>
+      <div class="tag">DEEP CODE INTELLIGENCE ENGINE</div>
+      <h2>❌ Invalid or Expired Link</h2>
+      <p>This verification link is invalid or has expired.<br>Please <a href="/login.html">register again</a> or request a new verification email.</p>
     </body></html>`);
   }
 
+  // Check if token has expired
   if (Date.now() > pending.expires) {
-    delete pendingVerifications[token];
-    return res.send(`<html><body style="background:#03030a;color:#fff;font-family:Arial;text-align:center;padding:60px">
-      <h2 style="color:#ff4757">❌ Verification link expired</h2>
-      <p style="color:#a0b4d0">Please register again at <a href="/login.html" style="color:#a78bfa">ArchAI</a></p>
+    deleteVerificationToken(token);
+    return res.send(`<!DOCTYPE html>
+    <html><head><meta charset="UTF-8">
+    <style>
+      body{background:#03030a;color:#fff;font-family:Arial,sans-serif;text-align:center;padding:60px;margin:0}
+      h1{color:#a78bfa;font-size:32px;margin-bottom:4px;font-family:monospace}
+      .tag{color:#5a5a7a;font-size:11px;letter-spacing:3px;margin-bottom:40px}
+      h2{color:#ff4757;font-size:22px;margin-bottom:16px}
+      p{color:#a0b4d0;line-height:1.8;font-size:14px}
+      a{color:#a78bfa;text-decoration:none}
+      a:hover{text-decoration:underline}
+    </style>
+    </head>
+    <body>
+      <h1>ARCH<span style="color:#00f5ff">AI</span></h1>
+      <div class="tag">DEEP CODE INTELLIGENCE ENGINE</div>
+      <h2>⏰ Link Expired</h2>
+      <p>This verification link has expired (24h limit).<br>Please <a href="/login.html">log in</a> and request a new verification email.</p>
     </body></html>`);
   }
 
-  // Mark email as verified in database
+  // Mark user as verified in database
   const user = getUserByEmail(pending.email);
   if (user) {
     updateUser(user.id, { email_verified: true });
+    console.log(`✅ Email verified: ${pending.email}`);
   }
 
-  delete pendingVerifications[token];
+  // Clean up used token
+  deleteVerificationToken(token);
 
-  res.send(`<html><body style="background:#03030a;color:#fff;font-family:Arial;text-align:center;padding:60px">
-    <h1 style="color:#a78bfa;font-size:32px">ARCHAI</h1>
-    <h2 style="color:#00ff9d">✓ Email Verified Successfully!</h2>
-    <p style="color:#a0b4d0">Your account is now active. You have 5 free analyses per day!</p>
-    <a href="/login.html" style="display:inline-block;background:linear-gradient(135deg,#6c4fff,#9333ea);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;margin:20px 0">→ Sign In to ArchAI</a>
+  res.send(`<!DOCTYPE html>
+  <html><head><meta charset="UTF-8">
+  <meta http-equiv="refresh" content="3;url=/login.html">
+  <style>
+    body{background:#03030a;color:#fff;font-family:Arial,sans-serif;text-align:center;padding:60px;margin:0}
+    h1{color:#a78bfa;font-size:32px;margin-bottom:4px;font-family:monospace}
+    .tag{color:#5a5a7a;font-size:11px;letter-spacing:3px;margin-bottom:40px}
+    h2{color:#00ff9d;font-size:24px;margin-bottom:16px}
+    p{color:#a0b4d0;line-height:1.8;font-size:14px}
+    .btn{display:inline-block;background:linear-gradient(135deg,#6c4fff,#9333ea);color:#fff;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:700;margin:20px 0;font-size:14px}
+    .btn:hover{box-shadow:0 8px 30px rgba(108,79,255,.5)}
+    .countdown{color:#5a5a7a;font-size:12px;margin-top:10px}
+  </style>
+  </head>
+  <body>
+    <h1>ARCH<span style="color:#00f5ff">AI</span></h1>
+    <div class="tag">DEEP CODE INTELLIGENCE ENGINE</div>
+    <h2>✓ Email Verified Successfully!</h2>
+    <p>Your account is now active!<br>You have <strong style="color:#a78bfa">5 free analyses per day!</strong></p>
+    <a href="/login.html" class="btn">→ Sign In to ArchAI</a>
+    <div class="countdown">Redirecting to login in 3 seconds...</div>
   </body></html>`);
+});
+
+// POST /api/auth/resend-verification — Resend verification email
+app.post('/api/auth/resend-verification', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+  const user = getUserByEmail(email);
+  if (!user) return res.status(404).json({ error: 'No account found with this email.' });
+  if (user.email_verified) return res.json({ success: true, message: 'Email is already verified! You can log in.' });
+
+  // Invalidate any existing tokens for this email
+  deleteVerificationTokensByEmail(email);
+
+  // Generate new token
+  const token = crypto2.randomBytes(32).toString('hex');
+  const expires = Date.now() + 24*60*60*1000;
+  saveVerificationToken(token, email.toLowerCase(), user.name, expires);
+
+  try {
+    await sendVerificationEmail(email, user.name, token);
+    console.log(`📧 Verification email re-sent to: ${email}`);
+    res.json({ success: true, message: 'Verification email sent! Check your inbox.' });
+  } catch (err) {
+    console.error('Resend email error:', err.message);
+    res.status(500).json({ error: 'Failed to send email. Please try again.' });
+  }
 });
 
 // ── Guest Trial Route (no auth required) ─────────────────────
@@ -737,13 +810,29 @@ app.post('/api/auth/register', async (req, res) => {
     // Hash password securely
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create user
-    const user  = createUser(name, email, passwordHash);
-    const token = generateToken(user.id);
+    // Create user (email_verified defaults to false in database.js)
+    const user = createUser(name, email, passwordHash);
 
-    console.log(`✅ New user registered: ${email}`);
-await transporter.sendMail({ from: `"ArchAI" <${process.env.EMAIL_USER}>`, to: email, subject: '⚡ Verify your ArchAI account', html: `<h1>Welcome ${name}!</h1><p>Your ArchAI account is created successfully!</p>` });
-    res.json({ sugcess: true, token, user, freeLimit: FREE_DAILY_LIMIT });
+    // Generate verification token and store it in database
+    const verificationToken = crypto2.randomBytes(32).toString('hex');
+    const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    saveVerificationToken(verificationToken, email.toLowerCase(), name, expires);
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, name, verificationToken);
+      console.log(`✅ New user registered: ${email} — verification email sent`);
+    } catch (e) {
+      console.log(`⚠️  User registered but email failed: ${e.message}`);
+    }
+
+    // Don't return auth token — user must verify email first
+    res.json({
+      success: true,
+      needsVerification: true,
+      message: 'Account created! Please check your email and click the verification link to activate your account.',
+      email: email
+    });
 
   } catch (err) {
     console.error('Register error:', err.message);
@@ -770,6 +859,15 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // Block login if email not verified
+    if (!user.email_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email before logging in. Check your inbox for the verification link.',
+        needsVerification: true,
+        email: user.email
+      });
     }
 
     const token = generateToken(user.id);

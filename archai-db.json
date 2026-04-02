@@ -1,59 +1,44 @@
 {
   "users": [
     {
-      "id": "9bdf6ecc800aa7f0",
+      "id": "03b5efe11cb65bba",
       "name": "Mani Deepak",
       "email": "ms2113828@gmail.com",
-      "password_hash": "$2a$10$sRhxTDfjGv0JYvLsVUc/B.7uS0viQhR8Eri0llVEfDgPN2ttLuFRi",
+      "password_hash": "$2a$10$XpLa8pFj6/TwvrwCuCJG2.p1DR2J2Ey4fUlS6s7yEQYq693pl4wYq",
       "plan": "free",
-      "analyses_today": 0,
-      "analyses_total": 2,
-      "last_reset": "2026-03-11",
-      "created_at": "2026-03-04T11:17:27.515Z"
-    },
-    {
-      "id": "82de25d5dd7144d4",
-      "name": "TestUser",
-      "email": "testuser123@gmail.com",
-      "password_hash": "$2a$10$aZNyKrEQghymWViB.dN90eI4OyJt/0qUVgXkTq.uX7/B.O5Tmb0V2",
-      "plan": "free",
+      "email_verified": false,
       "analyses_today": 0,
       "analyses_total": 0,
-      "last_reset": "2026-03-21",
-      "created_at": "2026-03-21T14:17:15.324Z"
+      "last_reset": "2026-04-02",
+      "created_at": "2026-04-02T11:31:39.430Z"
     },
     {
-      "id": "8dd9d98bbd314d4d",
-      "name": "Saritha",
-      "email": "sarithanithin123@gmail.com",
-      "password_hash": "$2a$10$chXZNggExtiN7CATqHDxuOFzZAz/oYWVuif/RotwCXnk5YIIQtsKK",
-      "plan": "free",
-      "analyses_today": 0,
-      "analyses_total": 0,
-      "last_reset": "2026-03-29",
-      "created_at": "2026-03-29T11:47:10.767Z"
-    },
-    {
-      "id": "49c20dd57d99ebd1",
-      "name": "Bharath Kumar",
+      "id": "3083af54e7a88d41",
+      "name": "Bharath kumar",
       "email": "barathpatel01@gmail.com",
-      "password_hash": "$2a$10$ZMKa42D.OpT8s.w.LQQ3/.n1SJ6bABn9IHcd/XM74uX/uoAb2JpWa",
+      "password_hash": "$2a$10$yb1sE09I3uxc0RNNfI3Mi.5gaTszydudS61YXhggzWBCCBsuYjZcO",
       "plan": "free",
+      "email_verified": false,
       "analyses_today": 0,
       "analyses_total": 0,
-      "last_reset": "2026-03-29",
-      "created_at": "2026-03-29T12:15:31.738Z"
+      "last_reset": "2026-04-02",
+      "created_at": "2026-04-02T11:36:56.873Z"
+    }
+  ],
+  "verification_tokens": [
+    {
+      "token": "8fa9f4c17704d952c186202c08d10921c4c3bd79f0c694cbf87e0982adce6bdc",
+      "email": "ms2113828@gmail.com",
+      "name": "Mani Deepak",
+      "expires": 1775215899433,
+      "created_at": "2026-04-02T11:31:39.435Z"
     },
     {
-      "id": "403b9613dd6993de",
-      "name": "Deepak",
-      "email": "manideepakpattlolla@gmail.com",
-      "password_hash": "$2a$10$I/drNKmyA0hRiIqM1fxgd.KPgQaSTs9NR4dvrCV4.6sc2ZY10Xdea",
-      "plan": "free",
-      "analyses_today": 0,
-      "analyses_total": 0,
-      "last_reset": "2026-03-29",
-      "created_at": "2026-03-29T12:43:43.238Z"
+      "token": "c35a349255c8f7fa41f80dc269a9ac8df0b30ba5c66408a124a1f51bf1f9fb21",
+      "email": "barathpatel01@gmail.com",
+      "name": "Bharath kumar",
+      "expires": 1775216216875,
+      "created_at": "2026-04-02T11:36:56.876Z"
     }
   ]
 }

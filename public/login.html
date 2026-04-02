@@ -58,6 +58,12 @@
     input:focus{border-color:var(--accent);background:rgba(108,79,255,.05);box-shadow:0 0 20px rgba(108,79,255,.15)}
     input::placeholder{color:var(--muted);font-size:.75rem}
 
+    .pw-wrap{position:relative}
+    .pw-wrap input{padding-right:44px}
+    .pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);transition:color .3s;display:flex;align-items:center}
+    .pw-toggle:hover{color:var(--accent2)}
+    .pw-toggle svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
     .btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--accent) 0%,#9333ea 50%,var(--accent) 100%);background-size:200% 100%;border:none;border-radius:12px;color:#fff;font-family:'Orbitron',monospace;font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .3s;margin-top:8px;position:relative;overflow:hidden}
     .btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(108,79,255,.5)}
     .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
@@ -104,7 +110,12 @@
       </div>
       <div class="form-group">
         <label>// Password</label>
-        <input type="password" id="login-password" placeholder="••••••••"/>
+        <div class="pw-wrap">
+          <input type="password" id="login-password" placeholder="••••••••"/>
+          <button type="button" class="pw-toggle" onclick="togglePw('login-password',this)" aria-label="Show password">
+            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
       <button class="btn" onclick="handleLogin()" id="login-btn">→ Initialize Session</button>
     </div>
@@ -120,13 +131,34 @@
       </div>
       <div class="form-group">
         <label>// Password</label>
-        <input type="password" id="reg-password" placeholder="Min 6 characters"/>
+        <div class="pw-wrap">
+          <input type="password" id="reg-password" placeholder="Min 6 characters"/>
+          <button type="button" class="pw-toggle" onclick="togglePw('reg-password',this)" aria-label="Show password">
+            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
       <div class="form-group">
         <label>// Re-enter Password</label>
-        <input type="password" id="reg-password2" placeholder="Confirm your password"/>
+        <div class="pw-wrap">
+          <input type="password" id="reg-password2" placeholder="Confirm your password"/>
+          <button type="button" class="pw-toggle" onclick="togglePw('reg-password2',this)" aria-label="Show password">
+            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
       <button class="btn" onclick="handleRegister()" id="register-btn">→ Deploy Account</button>
+    </div>
+
+    <div id="verification-pending" style="display:none;text-align:center">
+      <div style="width:64px;height:64px;margin:0 auto 20px;border-radius:50%;background:rgba(0,245,255,.08);border:2px solid rgba(0,245,255,.3);display:flex;align-items:center;justify-content:center;font-size:28px;animation:statusPulse 2s ease-in-out infinite">📧</div>
+      <h3 style="font-family:'Orbitron',monospace;font-size:.85rem;color:#00f5ff;letter-spacing:.05em;margin-bottom:12px">VERIFY YOUR EMAIL</h3>
+      <p style="font-size:.75rem;color:var(--text);line-height:1.7;margin-bottom:8px">We sent a verification link to:</p>
+      <p id="verify-email-display" style="font-family:'Space Mono',monospace;font-size:.72rem;color:var(--accent2);padding:10px 16px;background:rgba(108,79,255,.06);border:1px solid rgba(108,79,255,.15);border-radius:8px;display:inline-block;margin-bottom:20px;word-break:break-all"></p>
+      <p style="font-size:.68rem;color:var(--muted);line-height:1.7;margin-bottom:20px">Open your inbox, click the verification link,<br>then come back here to sign in.</p>
+      <button class="btn" onclick="resendVerification()" id="resend-btn" style="background:transparent;border:1px solid rgba(0,245,255,.3);color:#00f5ff;font-size:.62rem;margin-bottom:12px">↻ Resend Verification Email</button>
+      <br>
+      <button onclick="switchTab('login')" style="background:transparent;border:none;color:var(--accent2);font-family:'Space Mono',monospace;font-size:.6rem;cursor:pointer;padding:8px;opacity:.7;transition:opacity .3s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">← Back to Sign In</button>
     </div>
 
     <div class="free-badge">
@@ -154,16 +186,63 @@
 
   if(localStorage.getItem('archai_token')) window.location.href='/';
 
+  let pendingVerificationEmail = null;
+
+  // Password show/hide toggle
+  function togglePw(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    // Swap icon: open eye ↔ slashed eye
+    btn.innerHTML = isPassword
+      ? '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+      : '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  }
+
   function switchTab(tab){
     document.getElementById('form-login').style.display=tab==='login'?'block':'none';
     document.getElementById('form-register').style.display=tab==='register'?'block':'none';
+    document.getElementById('verification-pending').style.display='none';
     document.getElementById('tab-login').classList.toggle('active',tab==='login');
     document.getElementById('tab-register').classList.toggle('active',tab==='register');
     hideMessages();
   }
+
   function showError(msg){const e=document.getElementById('error-msg');e.textContent='⚠ '+msg;e.classList.add('visible');document.getElementById('success-msg').classList.remove('visible')}
   function showSuccess(msg){const e=document.getElementById('success-msg');e.textContent='✓ '+msg;e.classList.add('visible');document.getElementById('error-msg').classList.remove('visible')}
   function hideMessages(){document.getElementById('error-msg').classList.remove('visible');document.getElementById('success-msg').classList.remove('visible')}
+
+  function showVerificationPending(email) {
+    pendingVerificationEmail = email;
+    document.getElementById('form-login').style.display = 'none';
+    document.getElementById('form-register').style.display = 'none';
+    document.getElementById('verification-pending').style.display = 'block';
+    document.getElementById('verify-email-display').textContent = email;
+    hideMessages();
+  }
+
+  async function resendVerification() {
+    if (!pendingVerificationEmail) return;
+    const btn = document.getElementById('resend-btn');
+    btn.disabled = true;
+    btn.textContent = '⟳ Sending...';
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingVerificationEmail })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showSuccess(data.message);
+      btn.textContent = '✓ Email Sent!';
+      setTimeout(() => { btn.disabled = false; btn.textContent = '↻ Resend Verification Email'; }, 30000);
+    } catch (err) {
+      showError(err.message);
+      btn.disabled = false;
+      btn.textContent = '↻ Resend Verification Email';
+    }
+  }
 
   async function handleLogin(){
     const email=document.getElementById('login-email').value.trim();
@@ -174,7 +253,15 @@
     try{
       const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
       const data=await res.json();
-      if(!res.ok)throw new Error(data.error);
+      if(!res.ok){
+        // If email not verified, show verification panel
+        if(data.needsVerification){
+          showVerificationPending(data.email || email);
+          btn.disabled=false;btn.textContent='→ Initialize Session';
+          return;
+        }
+        throw new Error(data.error);
+      }
       localStorage.setItem('archai_token',data.token);
       localStorage.setItem('archai_user',JSON.stringify(data.user));
       showSuccess('Authentication successful. Loading...');
@@ -196,15 +283,16 @@
       const res=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password})});
       const data=await res.json();
       if(!res.ok)throw new Error(data.error);
-      localStorage.setItem('archai_token',data.token);
-      localStorage.setItem('archai_user',JSON.stringify(data.user));
-      showSuccess('Account created! Please check your email to verify your account!');
-      setTimeout(()=>window.location.href='/',1200);
+      // Show verification pending panel
+      showVerificationPending(data.email || email);
+      showSuccess('Account created! Check your email for the verification link.');
     }catch(err){showError(err.message);btn.disabled=false;btn.textContent='→ Deploy Account';}
   }
 
   document.addEventListener('keydown',e=>{
     if(e.key==='Enter'){
+      const verifyVisible=document.getElementById('verification-pending').style.display!=='none';
+      if(verifyVisible) return;
       const loginVisible=document.getElementById('form-login').style.display!=='none';
       if(loginVisible)handleLogin();else handleRegister();
     }

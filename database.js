@@ -9,7 +9,7 @@ const crypto   = require('crypto');
 const adapter = new FileSync(path.join(__dirname, 'archai-db.json'));
 const db      = low(adapter);
 
-db.defaults({ users: [] }).write();
+db.defaults({ users: [], verification_tokens: [] }).write();
 console.log('✅ Database ready — archai-db.json');
 
 function generateId() { return crypto.randomBytes(8).toString('hex'); }
@@ -21,6 +21,7 @@ function createUser(name, email, passwordHash) {
     email: email.toLowerCase(),
     password_hash: passwordHash,
     plan: 'free',
+    email_verified: false,
     analyses_today: 0, analyses_total: 0,
     last_reset: getToday(),
     created_at: new Date().toISOString()
@@ -61,4 +62,34 @@ function incrementUsage(id) {
   }
 }
 
-module.exports = { createUser, getUserByEmail, getUserById, updateUser, resetDailyIfNeeded, incrementUsage };
+// ── Verification Token Functions ─────────────────────────────
+function saveVerificationToken(token, email, name, expires) {
+  // Remove any existing tokens for this email first
+  db.get('verification_tokens').remove({ email: email.toLowerCase() }).write();
+  db.get('verification_tokens').push({
+    token,
+    email: email.toLowerCase(),
+    name,
+    expires,
+    created_at: new Date().toISOString()
+  }).write();
+}
+
+function getVerificationToken(token) {
+  return db.get('verification_tokens').find({ token }).value();
+}
+
+function deleteVerificationToken(token) {
+  db.get('verification_tokens').remove({ token }).write();
+}
+
+function deleteVerificationTokensByEmail(email) {
+  db.get('verification_tokens').remove({ email: email.toLowerCase() }).write();
+}
+
+module.exports = {
+  createUser, getUserByEmail, getUserById, updateUser,
+  resetDailyIfNeeded, incrementUsage,
+  saveVerificationToken, getVerificationToken,
+  deleteVerificationToken, deleteVerificationTokensByEmail
+};
