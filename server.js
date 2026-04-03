@@ -33,7 +33,7 @@ const transporter = nodemailer.createTransport({
 // Store pending verifications
 // (Now persisted in database — see database.js)
 
-const { createUser, getUserByEmail, updateUser, saveVerificationToken, getVerificationToken, deleteVerificationToken, deleteVerificationTokensByEmail } = require('./database');
+const { createUser, getUserByEmail, updateUser, saveVerificationToken, getVerificationToken, deleteVerificationToken, deleteVerificationTokensByEmail, deleteUserByEmail, getAllUsers } = require('./database');
 const { generateToken, requireAuth, incrementUsage, FREE_DAILY_LIMIT } = require('./auth');
 
 const app  = express();
@@ -436,8 +436,12 @@ async function sendVerificationEmail(email, name, token) {
 app.get('/api/auth/verify-email', async (req, res) => {
   const { token } = req.query;
 
+  console.log(`🔍 Verify-email hit — token: ${token ? token.substring(0, 12) + '...' : 'MISSING'}`);
+
   // Check if token exists and is valid
   const pending = getVerificationToken(token);
+  console.log(`🔍 Token lookup result: ${pending ? `found for ${pending.email}` : 'NOT FOUND'}`);
+
   if (!token || !pending) {
     return res.send(`<!DOCTYPE html>
     <html><head><meta charset="UTF-8">
@@ -966,6 +970,32 @@ app.get('/api/health', (req, res) => {
     modes:     ['single-file', 'zip-upload', 'github'],
     apiKeySet: !!process.env.ANTHROPIC_API_KEY
   });
+});
+
+// ── Admin Routes (for testing/debugging) ─────────────────────
+// DELETE a user by email (for testing reset)
+app.delete('/api/admin/user/:email', (req, res) => {
+  const email = decodeURIComponent(req.params.email);
+  const deleted = deleteUserByEmail(email);
+  if (deleted) {
+    console.log(`🗑️  Admin: deleted user ${email}`);
+    res.json({ success: true, message: `User ${email} and their tokens deleted.` });
+  } else {
+    res.status(404).json({ error: `No user found with email: ${email}` });
+  }
+});
+
+// LIST all users (for debugging)
+app.get('/api/admin/users', (req, res) => {
+  const users = getAllUsers().map(u => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    plan: u.plan,
+    email_verified: u.email_verified,
+    created_at: u.created_at
+  }));
+  res.json({ users, count: users.length });
 });
 
 // ── Serve Frontend ───────────────────────────────────────────

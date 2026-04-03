@@ -87,9 +87,22 @@ function deleteVerificationTokensByEmail(email) {
   db.get('verification_tokens').remove({ email: email.toLowerCase() }).write();
 }
 
+function deleteUserByEmail(email) {
+  const user = getUserByEmail(email);
+  if (!user) return null;
+  db.get('users').remove({ email: email.toLowerCase() }).write();
+  db.get('verification_tokens').remove({ email: email.toLowerCase() }).write();
+  return user;
+}
+
+function getAllUsers() {
+  return db.get('users').value();
+}
+
 module.exports = {
   createUser, getUserByEmail, getUserById, updateUser,
   resetDailyIfNeeded, incrementUsage,
   saveVerificationToken, getVerificationToken,
-  deleteVerificationToken, deleteVerificationTokensByEmail
+  deleteVerificationToken, deleteVerificationTokensByEmail,
+  deleteUserByEmail, getAllUsers
 };
