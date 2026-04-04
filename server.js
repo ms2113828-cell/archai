@@ -8,6 +8,13 @@ require('dotenv').config();
 // Mode 3: GitHub URL analysis    (Phase 3 - NEW!)
 // ============================================================
 
+// ── IPv4-first DNS ───────────────────────────────────────────
+// Google SMTP resolves to IPv6 by default on many cloud platforms.
+// Railway (and others) silently drop IPv6 connections to external
+// SMTP servers, causing ETIMEDOUT. Force IPv4 resolution first.
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const express   = require('express');
 const Anthropic  = require('@anthropic-ai/sdk');
 const cors      = require('cors');
@@ -22,12 +29,15 @@ const crypto2  = require('crypto'); // for payment verification
 const nodemailer = require('nodemailer');
 
 // ── Email Transporter ─────────────────────────────────────
-// Use explicit SMTP config — port 465 with SSL.
-// Cloud providers (Railway, Render, etc.) often block port 587.
+// Port 587 + STARTTLS (requireTLS: true upgrades the connection).
+// Port 465 is completely blocked by Railway's egress firewall.
+// secure: false means "don't wrap the socket in TLS on connect" —
+// STARTTLS upgrades it after the EHLO handshake instead.
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,              // true for port 465 (SSL)
+  port: 587,
+  secure: false,             // false = use STARTTLS (not implicit SSL)
+  requireTLS: true,          // MUST upgrade to TLS — fail if server refuses
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
