@@ -22,13 +22,22 @@ const crypto2  = require('crypto'); // for payment verification
 const nodemailer = require('nodemailer');
 
 // ── Email Transporter ─────────────────────────────────────
+// Use explicit SMTP config — port 465 with SSL.
+// Cloud providers (Railway, Render, etc.) often block port 587.
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,       // true for port 465 (SSL), false for 587 (STARTTLS)
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   }
 });
+
+// Verify SMTP connection at startup so auth issues surface immediately
+transporter.verify()
+  .then(() => console.log('✅ Email transporter ready — SMTP connection verified'))
+  .catch(err => console.error('❌ Email transporter FAILED — emails will NOT send:', err.message));
 
 // Store pending verifications
 // (Now persisted in database — see database.js)
@@ -404,32 +413,41 @@ Respond ONLY with valid JSON:
 
 // Helper: Send verification email with token
 async function sendVerificationEmail(email, name, token) {
-  const verifyUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/auth/verify-email?token=${token}`;
+  const baseUrl = process.env.BASE_URL || 'https://archai-production-74d9.up.railway.app';
+  const verifyUrl = `${baseUrl}/api/auth/verify-email?token=${token}`;
+  console.log(`📧 Sending verification email to ${email} — link: ${verifyUrl}`);
 
-  await transporter.sendMail({
-    from: `"ArchAI" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: '⚡ Verify your ArchAI account',
-    html: `
-      <div style="background:#03030a;padding:40px;font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border-radius:16px">
-        <div style="text-align:center">
-          <h1 style="color:#a78bfa;font-size:32px;margin-bottom:4px;font-family:monospace">ARCH<span style="color:#00f5ff">AI</span></h1>
-          <p style="color:#5a5a7a;font-size:11px;margin-bottom:30px;letter-spacing:3px">DEEP CODE INTELLIGENCE ENGINE</p>
-        </div>
-        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(108,79,255,0.2);border-radius:12px;padding:30px;margin-bottom:20px">
-          <h2 style="color:#ffffff;font-size:20px;margin-bottom:12px">Welcome, ${name}! 👋</h2>
-          <p style="color:#a0b4d0;line-height:1.8;font-size:14px">Thank you for joining ArchAI! Please verify your email to activate your free account with <strong style="color:#a78bfa">5 deep analyses per day</strong>.</p>
-          <div style="text-align:center;margin:28px 0">
-            <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#6c4fff,#9333ea);color:#fff;text-decoration:none;padding:16px 40px;border-radius:12px;font-weight:700;font-size:14px;letter-spacing:0.5px">⚡ Verify My Email</a>
+  try {
+    const info = await transporter.sendMail({
+      from: `"ArchAI" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: '⚡ Verify your ArchAI account',
+      html: `
+        <div style="background:#03030a;padding:40px;font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border-radius:16px">
+          <div style="text-align:center">
+            <h1 style="color:#a78bfa;font-size:32px;margin-bottom:4px;font-family:monospace">ARCH<span style="color:#00f5ff">AI</span></h1>
+            <p style="color:#5a5a7a;font-size:11px;margin-bottom:30px;letter-spacing:3px">DEEP CODE INTELLIGENCE ENGINE</p>
           </div>
-          <p style="color:#5a5a7a;font-size:12px;text-align:center">This link expires in <strong style="color:#a0b4d0">24 hours</strong>.</p>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(108,79,255,0.2);border-radius:12px;padding:30px;margin-bottom:20px">
+            <h2 style="color:#ffffff;font-size:20px;margin-bottom:12px">Welcome, ${name}! 👋</h2>
+            <p style="color:#a0b4d0;line-height:1.8;font-size:14px">Thank you for joining ArchAI! Please verify your email to activate your free account with <strong style="color:#a78bfa">5 deep analyses per day</strong>.</p>
+            <div style="text-align:center;margin:28px 0">
+              <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#6c4fff,#9333ea);color:#fff;text-decoration:none;padding:16px 40px;border-radius:12px;font-weight:700;font-size:14px;letter-spacing:0.5px">⚡ Verify My Email</a>
+            </div>
+            <p style="color:#5a5a7a;font-size:12px;text-align:center">This link expires in <strong style="color:#a0b4d0">24 hours</strong>.</p>
+          </div>
+          <p style="color:#5a5a7a;font-size:11px;text-align:center">If you didn't create an account, you can safely ignore this email.</p>
+          <hr style="border:none;border-top:1px solid rgba(108,79,255,0.15);margin:20px 0">
+          <p style="color:#5a5a7a;font-size:11px;text-align:center">ArchAI — Code That Thinks Before It Fixes</p>
         </div>
-        <p style="color:#5a5a7a;font-size:11px;text-align:center">If you didn't create an account, you can safely ignore this email.</p>
-        <hr style="border:none;border-top:1px solid rgba(108,79,255,0.15);margin:20px 0">
-        <p style="color:#5a5a7a;font-size:11px;text-align:center">ArchAI — Code That Thinks Before It Fixes</p>
-      </div>
-    `
-  });
+      `
+    });
+    console.log(`✅ Email sent successfully — messageId: ${info.messageId}`);
+    return info;
+  } catch (error) {
+    console.error('❌ Email failed:', error);
+    throw error;  // Re-throw so callers can handle it
+  }
 }
 
 // GET /api/auth/verify-email — User clicks this link from their email
@@ -822,21 +840,30 @@ app.post('/api/auth/register', async (req, res) => {
     const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
     saveVerificationToken(verificationToken, email.toLowerCase(), name, expires);
 
-    // Send verification email
+    // Send verification email — response depends on email success
     try {
       await sendVerificationEmail(email, name, verificationToken);
       console.log(`✅ New user registered: ${email} — verification email sent`);
-    } catch (e) {
-      console.log(`⚠️  User registered but email failed: ${e.message}`);
-    }
 
-    // Don't return auth token — user must verify email first
-    res.json({
-      success: true,
-      needsVerification: true,
-      message: 'Account created! Please check your email and click the verification link to activate your account.',
-      email: email
-    });
+      // Only respond success AFTER email is confirmed sent
+      res.json({
+        success: true,
+        needsVerification: true,
+        message: 'Account created! Please check your email and click the verification link to activate your account.',
+        email: email
+      });
+    } catch (e) {
+      console.error(`❌ User registered but email failed for ${email}:`, e);
+      // User is created but email didn't send — inform the frontend
+      // so they can use the "Resend" flow
+      res.status(201).json({
+        success: true,
+        needsVerification: true,
+        emailFailed: true,
+        message: 'Account created, but we could not send the verification email. Please use "Resend verification email" on the login page.',
+        email: email
+      });
+    }
 
   } catch (err) {
     console.error('Register error:', err.message);
@@ -1011,5 +1038,7 @@ app.listen(PORT, () => {
   console.log(`╚══════════════════════════════════════════════╝`);
   console.log(`\n🌐 Open: http://localhost:${PORT}`);
   console.log(`🔑 API Key:    ${process.env.ANTHROPIC_API_KEY ? '✅ Set' : '❌ Missing'}`);
-  console.log(`🐙 GitHub Token: ${process.env.GITHUB_TOKEN ? '✅ Set (higher rate limits)' : '⚠️  Not set (60 requests/hour limit)'}\n`);
+  console.log(`🐙 GitHub Token: ${process.env.GITHUB_TOKEN ? '✅ Set (higher rate limits)' : '⚠️  Not set (60 requests/hour limit)'}`);
+  console.log(`📧 EMAIL_USER: ${process.env.EMAIL_USER ? '✅ ' + process.env.EMAIL_USER : '❌ Missing'}`);
+  console.log(`📧 EMAIL_PASS: ${process.env.EMAIL_PASS ? '✅ Set (' + process.env.EMAIL_PASS.length + ' chars)' : '❌ Missing'}\n`);
 });
