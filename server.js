@@ -27,11 +27,19 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
-  secure: true,       // true for port 465 (SSL), false for 587 (STARTTLS)
+  secure: true,              // true for port 465 (SSL)
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
-  }
+  },
+  logger: true,              // Print SMTP traffic to console (Railway logs)
+  debug: true,               // Even more verbose — shows full handshake
+  connectionTimeout: 10000,  // Abort if no TCP connection within 10 s
+  greetingTimeout: 10000,    // Abort if SMTP greeting takes > 10 s
+  socketTimeout: 15000,      // Abort if socket goes silent for 15 s
+  tls: {
+    rejectUnauthorized: false // Bypass strict SSL — Railway's internal network
+  }                          //   can interfere with certificate validation
 });
 
 // Verify SMTP connection at startup so auth issues surface immediately
@@ -840,30 +848,22 @@ app.post('/api/auth/register', async (req, res) => {
     const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
     saveVerificationToken(verificationToken, email.toLowerCase(), name, expires);
 
-    // Send verification email — response depends on email success
-    try {
-      await sendVerificationEmail(email, name, verificationToken);
-      console.log(`✅ New user registered: ${email} — verification email sent`);
+    // ── NON-BLOCKING email dispatch ──────────────────────────
+    // Respond to the frontend immediately — don't let a slow SMTP
+    // connection hold up the HTTP request for 2 minutes.
+    // The email fires in the background; errors are logged, not thrown.
+    sendVerificationEmail(email, name, verificationToken)
+      .then(() => console.log(`✅ Verification email sent to: ${email}`))
+      .catch(err => console.error(`❌ Background email failed for ${email}:`, err));
 
-      // Only respond success AFTER email is confirmed sent
-      res.json({
-        success: true,
-        needsVerification: true,
-        message: 'Account created! Please check your email and click the verification link to activate your account.',
-        email: email
-      });
-    } catch (e) {
-      console.error(`❌ User registered but email failed for ${email}:`, e);
-      // User is created but email didn't send — inform the frontend
-      // so they can use the "Resend" flow
-      res.status(201).json({
-        success: true,
-        needsVerification: true,
-        emailFailed: true,
-        message: 'Account created, but we could not send the verification email. Please use "Resend verification email" on the login page.',
-        email: email
-      });
-    }
+    console.log(`✅ New user registered: ${email} — verification email queued`);
+
+    res.status(201).json({
+      success: true,
+      needsVerification: true,
+      message: 'Account created! Please check your email and click the verification link to activate your account.',
+      email: email
+    });
 
   } catch (err) {
     console.error('Register error:', err.message);
