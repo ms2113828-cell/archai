@@ -8,12 +8,7 @@ require('dotenv').config();
 // Mode 3: GitHub URL analysis    (Phase 3 - NEW!)
 // ============================================================
 
-// ── IPv4-first DNS ───────────────────────────────────────────
-// Google SMTP resolves to IPv6 by default on many cloud platforms.
-// Railway (and others) silently drop IPv6 connections to external
-// SMTP servers, causing ETIMEDOUT. Force IPv4 resolution first.
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
+
 
 const express   = require('express');
 const Anthropic  = require('@anthropic-ai/sdk');
@@ -26,36 +21,14 @@ const bcrypt   = require('bcryptjs');
 const Razorpay = require('razorpay');
 const razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
 const crypto2  = require('crypto'); // for payment verification
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// ── Email Transporter ─────────────────────────────────────
-// Port 587 + STARTTLS (requireTLS: true upgrades the connection).
-// Port 465 is completely blocked by Railway's egress firewall.
-// secure: false means "don't wrap the socket in TLS on connect" —
-// STARTTLS upgrades it after the EHLO handshake instead.
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,             // false = use STARTTLS (not implicit SSL)
-  requireTLS: true,          // MUST upgrade to TLS — fail if server refuses
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  logger: true,              // Print SMTP traffic to console (Railway logs)
-  debug: true,               // Even more verbose — shows full handshake
-  connectionTimeout: 10000,  // Abort if no TCP connection within 10 s
-  greetingTimeout: 10000,    // Abort if SMTP greeting takes > 10 s
-  socketTimeout: 15000,      // Abort if socket goes silent for 15 s
-  tls: {
-    rejectUnauthorized: false // Bypass strict SSL — Railway's internal network
-  }                          //   can interfere with certificate validation
-});
+// ── Resend Email Client ───────────────────────────────────
+// Uses HTTPS API instead of SMTP — bypasses Railway's egress
+// firewall that blocks outbound SMTP ports (465/587).
+const resend = new Resend(process.env.RESEND_API_KEY);
+console.log(`📧 Resend email client initialized (API key ${process.env.RESEND_API_KEY ? 'present' : 'MISSING!'})`);
 
-// Verify SMTP connection at startup so auth issues surface immediately
-transporter.verify()
-  .then(() => console.log('✅ Email transporter ready — SMTP connection verified'))
-  .catch(err => console.error('❌ Email transporter FAILED — emails will NOT send:', err.message));
 
 // Store pending verifications
 // (Now persisted in database — see database.js)
@@ -436,9 +409,9 @@ async function sendVerificationEmail(email, name, token) {
   console.log(`📧 Sending verification email to ${email} — link: ${verifyUrl}`);
 
   try {
-    const info = await transporter.sendMail({
-      from: `"ArchAI" <${process.env.EMAIL_USER}>`,
-      to: email,
+    const { data, error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'ArchAI <onboarding@resend.dev>',
+      to: [email],
       subject: '⚡ Verify your ArchAI account',
       html: `
         <div style="background:#03030a;padding:40px;font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border-radius:16px">
@@ -460,11 +433,17 @@ async function sendVerificationEmail(email, name, token) {
         </div>
       `
     });
-    console.log(`✅ Email sent successfully — messageId: ${info.messageId}`);
-    return info;
-  } catch (error) {
-    console.error('❌ Email failed:', error);
-    throw error;  // Re-throw so callers can handle it
+
+    if (error) {
+      console.error('❌ Resend API error:', error);
+      throw new Error(error.message || 'Resend API returned an error');
+    }
+
+    console.log(`✅ Email sent successfully — id: ${data.id}`);
+    return data;
+  } catch (err) {
+    console.error('❌ Email failed:', err);
+    throw err;  // Re-throw so callers can handle it
   }
 }
 
