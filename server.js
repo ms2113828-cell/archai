@@ -33,7 +33,7 @@ console.log(`📧 Resend email client initialized (API key ${process.env.RESEND_
 // Store pending verifications
 // (Now persisted in database — see database.js)
 
-const { createUser, getUserByEmail, updateUser, saveVerificationToken, getVerificationToken, deleteVerificationToken, deleteVerificationTokensByEmail, deleteUserByEmail, getAllUsers } = require('./database');
+const { createUser, getUserByEmail, updateUser, saveVerificationToken, getVerificationToken, deleteVerificationToken, deleteVerificationTokensByEmail, deleteUserByEmail, getAllUsers, saveAnalysis, getUserAnalyses } = require('./database');
 const { generateToken, requireAuth, incrementUsage, FREE_DAILY_LIMIT } = require('./auth');
 
 const app  = express();
@@ -638,6 +638,10 @@ app.post('/api/analyze', rateLimiter, requireAuth, async (req, res) => {
 
     console.log(`✅ Done! Score: ${result.overallHealthScore}`);
     incrementUsage(req.user.id);
+
+    // Save analysis to user history
+    saveAnalysis(req.user.email, code, result, 'single');
+
     res.json({ success: true, analysis: result });
 
   } catch (error) {
@@ -719,6 +723,11 @@ app.post('/api/analyze-codebase', rateLimiter, requireAuth, upload.single('codeb
 
     console.log(`✅ ZIP done! Score: ${result.overallHealthScore}`);
     incrementUsage(req.user.id);
+
+    // Save analysis to user history
+    const snippetSummary = `ZIP: ${req.file.originalname} (${files.length} files, ${files.reduce((s,f) => s+f.lines, 0)} lines)`;
+    saveAnalysis(req.user.email, snippetSummary, result, 'codebase');
+
     res.json({ success: true, analysis: result, mode: 'codebase' });
 
   } catch (error) {
@@ -791,6 +800,11 @@ app.post('/api/analyze-github', rateLimiter, requireAuth, async (req, res) => {
 
     console.log(`✅ GitHub done! Score: ${result.overallHealthScore}`);
     incrementUsage(req.user.id);
+
+    // Save analysis to user history
+    const snippetSummary = `GitHub: ${repoName} (${files.length} files, ${files.reduce((s,f) => s+f.lines, 0)} lines)`;
+    saveAnalysis(req.user.email, snippetSummary, result, 'github');
+
     res.json({ success: true, analysis: result, mode: 'github', repoName });
 
   } catch (error) {
@@ -908,6 +922,27 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/profile', requireAuth, (req, res) => {
   const { password_hash, ...safeUser } = req.user;
   res.json({ success: true, user: safeUser, freeLimit: FREE_DAILY_LIMIT });
+});
+
+// ============================================================
+// HISTORY ROUTE: Get Analysis History — GET /api/history
+// ============================================================
+app.get('/api/history', requireAuth, (req, res) => {
+  try {
+    const analyses = getUserAnalyses(req.user.email);
+
+    // Return newest first
+    const sorted = [...analyses].reverse();
+
+    res.json({
+      success: true,
+      count: sorted.length,
+      analyses: sorted
+    });
+  } catch (err) {
+    console.error('History fetch error:', err.message);
+    res.status(500).json({ error: 'Could not fetch analysis history.' });
+  }
 });
 
 

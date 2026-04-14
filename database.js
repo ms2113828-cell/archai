@@ -24,6 +24,7 @@ function createUser(name, email, passwordHash) {
     email_verified: false,
     analyses_today: 0, analyses_total: 0,
     last_reset: getToday(),
+    analyses: [],
     created_at: new Date().toISOString()
   };
   db.get('users').push(user).write();
@@ -99,10 +100,44 @@ function getAllUsers() {
   return db.get('users').value();
 }
 
+// ── Analysis History Functions ───────────────────────────────
+function saveAnalysis(email, codeSnippet, aiResponse, mode = 'single') {
+  const user = getUserByEmail(email);
+  if (!user) return null;
+
+  const record = {
+    id: generateId(),
+    codeSnippet: codeSnippet.substring(0, 2000), // Cap stored snippet size
+    aiResponse,
+    mode,
+    timestamp: new Date().toISOString()
+  };
+
+  // Ensure analyses array exists (backfill for pre-existing users)
+  if (!Array.isArray(user.analyses)) {
+    db.get('users').find({ id: user.id }).assign({ analyses: [] }).write();
+  }
+
+  db.get('users')
+    .find({ id: user.id })
+    .get('analyses')
+    .push(record)
+    .write();
+
+  return record;
+}
+
+function getUserAnalyses(email) {
+  const user = getUserByEmail(email);
+  if (!user) return [];
+  return user.analyses || [];
+}
+
 module.exports = {
   createUser, getUserByEmail, getUserById, updateUser,
   resetDailyIfNeeded, incrementUsage,
   saveVerificationToken, getVerificationToken,
   deleteVerificationToken, deleteVerificationTokensByEmail,
-  deleteUserByEmail, getAllUsers
+  deleteUserByEmail, getAllUsers,
+  saveAnalysis, getUserAnalyses
 };
