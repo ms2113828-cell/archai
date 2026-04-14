@@ -338,6 +338,19 @@
 
     .history-loading{text-align:center;padding:60px 20px;color:var(--muted)}
     .history-loading .loading-spinner{margin:0 auto 16px}
+
+    /* ── Trust Badge ───────────────────────────────────── */
+    .trust-badge{display:flex;align-items:center;gap:16px;padding:16px 22px;margin:0 0 28px;background:rgba(46,213,115,.04);border:1px solid rgba(46,213,115,.15);border-radius:12px;animation:fadeUp .6s ease}
+    .trust-badge-icon{flex-shrink:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(46,213,115,.1);border-radius:10px;border:1px solid rgba(46,213,115,.2)}
+    .trust-badge-icon svg{width:20px;height:20px;fill:none;stroke:#2ed573;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .trust-badge-content{flex:1}
+    .trust-badge-title{font-family:var(--font-head);font-size:.72rem;font-weight:700;letter-spacing:.06em;color:#2ed573;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+    .trust-badge-title::after{content:'';display:inline-block;width:6px;height:6px;background:#2ed573;border-radius:50%;animation:pulse 2s infinite}
+    .trust-badge-desc{font-size:.66rem;color:var(--muted);line-height:1.6;letter-spacing:.02em}
+    .trust-badge-desc strong{color:#a0b4d0;font-weight:600}
+    .trust-badge-tags{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap}
+    .trust-tag{padding:4px 10px;border-radius:100px;font-size:.56rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border:1px solid rgba(46,213,115,.2);color:rgba(46,213,115,.8);background:rgba(46,213,115,.05)}
+    @media(max-width:768px){.trust-badge{flex-direction:column;text-align:center}.trust-badge-tags{justify-content:center}}
 </style>
   <script src="https://checkout.razorpay.com/v1/checkout.js">
   // ── Payment System ────────────────────────────────────────
@@ -551,6 +564,22 @@
       <button class="btn-analyze btn-github" id="analyze-github-btn" onclick="analyzeGitHub()">
         <span>🐙</span> Fetch & Analyze GitHub Repository
       </button>
+    </div>
+  </div>
+
+  <!-- Trust Badge — Enterprise Privacy -->
+  <div class="trust-badge">
+    <div class="trust-badge-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4" stroke-width="2"/></svg>
+    </div>
+    <div class="trust-badge-content">
+      <div class="trust-badge-title">Enterprise-Grade Privacy</div>
+      <div class="trust-badge-desc">Powered by secure API. Your code is <strong>NEVER retained</strong> or used to <strong>train AI models</strong>. All analysis is processed in real-time and immediately discarded.</div>
+    </div>
+    <div class="trust-badge-tags">
+      <span class="trust-tag">🔒 Zero Retention</span>
+      <span class="trust-tag">🛡️ SOC 2 API</span>
+      <span class="trust-tag">🚫 No Training</span>
     </div>
   </div>
 
