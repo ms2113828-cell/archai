@@ -20,7 +20,7 @@ function generateToken(userId) {
 }
 
 // ── Verify Token Middleware ──────────────────────────────────
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token      = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
 
@@ -30,14 +30,14 @@ function requireAuth(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user    = getUserById(decoded.userId);
+    const user    = await getUserById(decoded.userId);
 
     if (!user) {
       return res.status(401).json({ error: 'User not found. Please log in again.' });
     }
 
     // Reset daily count if it's a new day
-    resetDailyIfNeeded(user);
+    await resetDailyIfNeeded(user);
 
     // Check daily limit for free users
     const limit = user.plan === 'pro' ? PRO_DAILY_LIMIT : FREE_DAILY_LIMIT;
@@ -60,8 +60,8 @@ function requireAuth(req, res, next) {
 }
 
 // ── Increment Usage After Analysis ──────────────────────────
-function incrementUsage(userId) {
-  dbIncrement(userId);
+async function incrementUsage(userId) {
+  await dbIncrement(userId);
 }
 
 module.exports = { generateToken, requireAuth, incrementUsage, FREE_DAILY_LIMIT };

@@ -33,7 +33,7 @@ console.log(`📧 Resend email client initialized (API key ${process.env.RESEND_
 // Store pending verifications
 // (Now persisted in database — see database.js)
 
-const { createUser, getUserByEmail, updateUser, saveVerificationToken, getVerificationToken, deleteVerificationToken, deleteVerificationTokensByEmail, deleteUserByEmail, getAllUsers, saveAnalysis, getUserAnalyses } = require('./database');
+const { connectDB, createUser, getUserByEmail, updateUser, saveVerificationToken, getVerificationToken, deleteVerificationToken, deleteVerificationTokensByEmail, deleteUserByEmail, getAllUsers, saveAnalysis, getUserAnalyses } = require('./database');
 const { generateToken, requireAuth, incrementUsage, FREE_DAILY_LIMIT } = require('./auth');
 
 const app  = express();
@@ -454,7 +454,7 @@ app.get('/api/auth/verify-email', async (req, res) => {
   console.log(`🔍 Verify-email hit — token: ${token ? token.substring(0, 12) + '...' : 'MISSING'}`);
 
   // Check if token exists and is valid
-  const pending = getVerificationToken(token);
+  const pending = await getVerificationToken(token);
   console.log(`🔍 Token lookup result: ${pending ? `found for ${pending.email}` : 'NOT FOUND'}`);
 
   if (!token || !pending) {
@@ -480,7 +480,7 @@ app.get('/api/auth/verify-email', async (req, res) => {
 
   // Check if token has expired
   if (Date.now() > pending.expires) {
-    deleteVerificationToken(token);
+    await deleteVerificationToken(token);
     return res.send(`<!DOCTYPE html>
     <html><head><meta charset="UTF-8">
     <style>
@@ -502,14 +502,14 @@ app.get('/api/auth/verify-email', async (req, res) => {
   }
 
   // Mark user as verified in database
-  const user = getUserByEmail(pending.email);
+  const user = await getUserByEmail(pending.email);
   if (user) {
-    updateUser(user.id, { email_verified: true });
+    await updateUser(user.id, { email_verified: true });
     console.log(`✅ Email verified: ${pending.email}`);
   }
 
   // Clean up used token
-  deleteVerificationToken(token);
+  await deleteVerificationToken(token);
 
   res.send(`<!DOCTYPE html>
   <html><head><meta charset="UTF-8">
@@ -540,17 +540,17 @@ app.post('/api/auth/resend-verification', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email is required.' });
 
-  const user = getUserByEmail(email);
+  const user = await getUserByEmail(email);
   if (!user) return res.status(404).json({ error: 'No account found with this email.' });
   if (user.email_verified) return res.json({ success: true, message: 'Email is already verified! You can log in.' });
 
   // Invalidate any existing tokens for this email
-  deleteVerificationTokensByEmail(email);
+  await deleteVerificationTokensByEmail(email);
 
   // Generate new token
   const token = crypto2.randomBytes(32).toString('hex');
   const expires = Date.now() + 24*60*60*1000;
-  saveVerificationToken(token, email.toLowerCase(), user.name, expires);
+  await saveVerificationToken(token, email.toLowerCase(), user.name, expires);
 
   try {
     await sendVerificationEmail(email, user.name, token);
@@ -637,10 +637,10 @@ app.post('/api/analyze', rateLimiter, requireAuth, async (req, res) => {
     }
 
     console.log(`✅ Done! Score: ${result.overallHealthScore}`);
-    incrementUsage(req.user.id);
+    await incrementUsage(req.user.id);
 
     // Save analysis to user history
-    saveAnalysis(req.user.email, code, result, 'single');
+    await saveAnalysis(req.user.email, code, result, 'single');
 
     res.json({ success: true, analysis: result });
 
@@ -722,11 +722,11 @@ app.post('/api/analyze-codebase', rateLimiter, requireAuth, upload.single('codeb
     result.filesAnalyzed = filesToAnalyze.length;
 
     console.log(`✅ ZIP done! Score: ${result.overallHealthScore}`);
-    incrementUsage(req.user.id);
+    await incrementUsage(req.user.id);
 
     // Save analysis to user history
     const snippetSummary = `ZIP: ${req.file.originalname} (${files.length} files, ${files.reduce((s,f) => s+f.lines, 0)} lines)`;
-    saveAnalysis(req.user.email, snippetSummary, result, 'codebase');
+    await saveAnalysis(req.user.email, snippetSummary, result, 'codebase');
 
     res.json({ success: true, analysis: result, mode: 'codebase' });
 
@@ -799,11 +799,11 @@ app.post('/api/analyze-github', rateLimiter, requireAuth, async (req, res) => {
     result.repoUrl       = repoUrl;
 
     console.log(`✅ GitHub done! Score: ${result.overallHealthScore}`);
-    incrementUsage(req.user.id);
+    await incrementUsage(req.user.id);
 
     // Save analysis to user history
     const snippetSummary = `GitHub: ${repoName} (${files.length} files, ${files.reduce((s,f) => s+f.lines, 0)} lines)`;
-    saveAnalysis(req.user.email, snippetSummary, result, 'github');
+    await saveAnalysis(req.user.email, snippetSummary, result, 'github');
 
     res.json({ success: true, analysis: result, mode: 'github', repoName });
 
@@ -835,7 +835,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     // Check if email already exists
-    const existing = getUserByEmail(email);
+    const existing = await getUserByEmail(email);
     if (existing) {
       return res.status(400).json({ error: 'An account with this email already exists.' });
     }
@@ -844,12 +844,12 @@ app.post('/api/auth/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Create user (email_verified defaults to false in database.js)
-    const user = createUser(name, email, passwordHash);
+    const user = await createUser(name, email, passwordHash);
 
     // Generate verification token and store it in database
     const verificationToken = crypto2.randomBytes(32).toString('hex');
     const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-    saveVerificationToken(verificationToken, email.toLowerCase(), name, expires);
+    await saveVerificationToken(verificationToken, email.toLowerCase(), name, expires);
 
     // ── NON-BLOCKING email dispatch ──────────────────────────
     // Respond to the frontend immediately — don't let a slow SMTP
@@ -885,7 +885,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
@@ -927,9 +927,9 @@ app.get('/api/auth/profile', requireAuth, (req, res) => {
 // ============================================================
 // HISTORY ROUTE: Get Analysis History — GET /api/history
 // ============================================================
-app.get('/api/history', requireAuth, (req, res) => {
+app.get('/api/history', requireAuth, async (req, res) => {
   try {
-    const analyses = getUserAnalyses(req.user.email);
+    const analyses = await getUserAnalyses(req.user.email);
 
     // Return newest first
     const sorted = [...analyses].reverse();
@@ -998,7 +998,7 @@ app.post('/api/payment/verify', requireAuth, async (req, res) => {
     }
 
     // Upgrade user to Pro!
-    updateUser(req.user.id, {
+    await updateUser(req.user.id, {
       plan:       'pro',
       pro_since:  new Date().toISOString(),
       payment_id: razorpay_payment_id
@@ -1025,9 +1025,9 @@ app.get('/api/health', (req, res) => {
 
 // ── Admin Routes (for testing/debugging) ─────────────────────
 // DELETE a user by email (for testing reset)
-app.delete('/api/admin/user/:email', (req, res) => {
+app.delete('/api/admin/user/:email', async (req, res) => {
   const email = decodeURIComponent(req.params.email);
-  const deleted = deleteUserByEmail(email);
+  const deleted = await deleteUserByEmail(email);
   if (deleted) {
     console.log(`🗑️  Admin: deleted user ${email}`);
     res.json({ success: true, message: `User ${email} and their tokens deleted.` });
@@ -1037,8 +1037,8 @@ app.delete('/api/admin/user/:email', (req, res) => {
 });
 
 // LIST all users (for debugging)
-app.get('/api/admin/users', (req, res) => {
-  const users = getAllUsers().map(u => ({
+app.get('/api/admin/users', async (req, res) => {
+  const users = (await getAllUsers()).map(u => ({
     id: u.id,
     name: u.name,
     email: u.email,
@@ -1055,14 +1055,22 @@ app.get('*', (req, res) => {
 });
 
 // ── Start Server ─────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n╔══════════════════════════════════════════════╗`);
-  console.log(`║      ArchAI Phase 4 — RUNNING! 🚀            ║`);
-  console.log(`║  Single File + ZIP + GitHub + Auth System    ║`);
-  console.log(`╚══════════════════════════════════════════════╝`);
-  console.log(`\n🌐 Open: http://localhost:${PORT}`);
-  console.log(`🔑 API Key:    ${process.env.ANTHROPIC_API_KEY ? '✅ Set' : '❌ Missing'}`);
-  console.log(`🐙 GitHub Token: ${process.env.GITHUB_TOKEN ? '✅ Set (higher rate limits)' : '⚠️  Not set (60 requests/hour limit)'}`);
-  console.log(`📧 EMAIL_USER: ${process.env.EMAIL_USER ? '✅ ' + process.env.EMAIL_USER : '❌ Missing'}`);
-  console.log(`📧 EMAIL_PASS: ${process.env.EMAIL_PASS ? '✅ Set (' + process.env.EMAIL_PASS.length + ' chars)' : '❌ Missing'}\n`);
+async function startServer() {
+  await connectDB();
+  app.listen(PORT, () => {
+    console.log(`\n╔══════════════════════════════════════════════╗`);
+    console.log(`║      ArchAI Phase 5 — MongoDB + RUNNING! 🚀  ║`);
+    console.log(`║  Persistent Cloud DB · All Data Survives     ║`);
+    console.log(`╚══════════════════════════════════════════════╝`);
+    console.log(`\n🌐 Open: http://localhost:${PORT}`);
+    console.log(`🔑 API Key:    ${process.env.ANTHROPIC_API_KEY ? '✅ Set' : '❌ Missing'}`);
+    console.log(`🐙 GitHub Token: ${process.env.GITHUB_TOKEN ? '✅ Set (higher rate limits)' : '⚠️  Not set (60 requests/hour limit)'}`);
+    console.log(`📧 Resend API: ${process.env.RESEND_API_KEY ? '✅ Set' : '❌ Missing'}`);
+    console.log(`🗄️  MongoDB:   ✅ Connected\n`);
+  });
+}
+
+startServer().catch(err => {
+  console.error('❌ Failed to start server:', err.message);
+  process.exit(1);
 });

@@ -1,139 +1,175 @@
 // ============================================================
-// database.js — ArchAI User Database (lowdb - pure JS!)
+// database.js — ArchAI User Database (MongoDB + Mongoose)
 // ============================================================
-const low      = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync');
-const path     = require('path');
-const crypto   = require('crypto');
+// Persistent cloud database — survives Railway redeployments!
+// ============================================================
+const mongoose = require('mongoose');
 
-const adapter = new FileSync(path.join(__dirname, 'archai-db.json'));
-const db      = low(adapter);
+// ── Connect to MongoDB ───────────────────────────────────────
+async function connectDB() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.error('❌ MONGODB_URI is not set! Database will not work.');
+    process.exit(1);
+  }
+  try {
+    await mongoose.connect(uri);
+    console.log('✅ MongoDB connected — persistent cloud database');
+  } catch (err) {
+    console.error('❌ MongoDB connection failed:', err.message);
+    process.exit(1);
+  }
+}
 
-db.defaults({ users: [], verification_tokens: [] }).write();
-console.log('✅ Database ready — archai-db.json');
+// ── Schemas ──────────────────────────────────────────────────
+const analysisSchema = new mongoose.Schema({
+  codeSnippet: { type: String, maxlength: 2000 },
+  aiResponse:  { type: mongoose.Schema.Types.Mixed },
+  mode:        { type: String, enum: ['single', 'codebase', 'github'], default: 'single' },
+  timestamp:   { type: Date, default: Date.now }
+}, { _id: true });
 
-function generateId() { return crypto.randomBytes(8).toString('hex'); }
-function getToday()   { return new Date().toISOString().split('T')[0]; }
+const userSchema = new mongoose.Schema({
+  name:            { type: String, required: true },
+  email:           { type: String, required: true, unique: true, lowercase: true },
+  password_hash:   { type: String, required: true },
+  plan:            { type: String, enum: ['free', 'pro'], default: 'free' },
+  email_verified:  { type: Boolean, default: false },
+  analyses_today:  { type: Number, default: 0 },
+  analyses_total:  { type: Number, default: 0 },
+  last_reset:      { type: String, default: () => new Date().toISOString().split('T')[0] },
+  analyses:        [analysisSchema],
+  pro_since:       { type: String },
+  payment_id:      { type: String },
+  created_at:      { type: Date, default: Date.now }
+});
 
-function createUser(name, email, passwordHash) {
-  const user = {
-    id: generateId(), name,
+const verificationTokenSchema = new mongoose.Schema({
+  token:      { type: String, required: true, unique: true },
+  email:      { type: String, required: true, lowercase: true },
+  name:       { type: String },
+  expires:    { type: Number, required: true },
+  created_at: { type: Date, default: Date.now }
+});
+
+const User              = mongoose.model('User', userSchema);
+const VerificationToken = mongoose.model('VerificationToken', verificationTokenSchema);
+
+// ── Helper ───────────────────────────────────────────────────
+function getToday() { return new Date().toISOString().split('T')[0]; }
+
+// ── User Functions ───────────────────────────────────────────
+async function createUser(name, email, passwordHash) {
+  const user = new User({
+    name,
     email: email.toLowerCase(),
     password_hash: passwordHash,
-    plan: 'free',
-    email_verified: false,
-    analyses_today: 0, analyses_total: 0,
-    last_reset: getToday(),
-    analyses: [],
-    created_at: new Date().toISOString()
-  };
-  db.get('users').push(user).write();
+  });
+  await user.save();
+  return user.toObject();
+}
+
+async function getUserByEmail(email) {
+  const user = await User.findOne({ email: email.toLowerCase() }).lean();
+  if (user) { user.id = user._id.toString(); }
   return user;
 }
 
-function getUserByEmail(email) {
-  return db.get('users').find({ email: email.toLowerCase() }).value();
+async function getUserById(id) {
+  const user = await User.findById(id).lean();
+  if (user) { user.id = user._id.toString(); }
+  return user;
 }
 
-function getUserById(id) {
-  return db.get('users').find({ id }).value();
+async function updateUser(id, updates) {
+  const user = await User.findByIdAndUpdate(id, { $set: updates }, { new: true }).lean();
+  if (user) { user.id = user._id.toString(); }
+  return user;
 }
 
-function updateUser(id, updates) {
-  db.get('users').find({ id }).assign(updates).write();
-  return getUserById(id);
-}
-
-function resetDailyIfNeeded(user) {
+async function resetDailyIfNeeded(user) {
   const today = getToday();
   if (user.last_reset !== today) {
-    updateUser(user.id, { analyses_today: 0, last_reset: today });
+    await User.findByIdAndUpdate(user._id || user.id, {
+      $set: { analyses_today: 0, last_reset: today }
+    });
     user.analyses_today = 0;
+    user.last_reset = today;
   }
   return user;
 }
 
-function incrementUsage(id) {
-  const user = getUserById(id);
-  if (user) {
-    updateUser(id, {
-      analyses_today: (user.analyses_today || 0) + 1,
-      analyses_total: (user.analyses_total || 0) + 1
-    });
-  }
+async function incrementUsage(id) {
+  await User.findByIdAndUpdate(id, {
+    $inc: { analyses_today: 1, analyses_total: 1 }
+  });
 }
 
 // ── Verification Token Functions ─────────────────────────────
-function saveVerificationToken(token, email, name, expires) {
+async function saveVerificationToken(token, email, name, expires) {
   // Remove any existing tokens for this email first
-  db.get('verification_tokens').remove({ email: email.toLowerCase() }).write();
-  db.get('verification_tokens').push({
+  await VerificationToken.deleteMany({ email: email.toLowerCase() });
+  await VerificationToken.create({
     token,
     email: email.toLowerCase(),
     name,
-    expires,
-    created_at: new Date().toISOString()
-  }).write();
+    expires
+  });
 }
 
-function getVerificationToken(token) {
-  return db.get('verification_tokens').find({ token }).value();
+async function getVerificationToken(token) {
+  return await VerificationToken.findOne({ token }).lean();
 }
 
-function deleteVerificationToken(token) {
-  db.get('verification_tokens').remove({ token }).write();
+async function deleteVerificationToken(token) {
+  await VerificationToken.deleteOne({ token });
 }
 
-function deleteVerificationTokensByEmail(email) {
-  db.get('verification_tokens').remove({ email: email.toLowerCase() }).write();
+async function deleteVerificationTokensByEmail(email) {
+  await VerificationToken.deleteMany({ email: email.toLowerCase() });
 }
 
-function deleteUserByEmail(email) {
-  const user = getUserByEmail(email);
+async function deleteUserByEmail(email) {
+  const user = await getUserByEmail(email);
   if (!user) return null;
-  db.get('users').remove({ email: email.toLowerCase() }).write();
-  db.get('verification_tokens').remove({ email: email.toLowerCase() }).write();
+  await User.deleteOne({ email: email.toLowerCase() });
+  await VerificationToken.deleteMany({ email: email.toLowerCase() });
   return user;
 }
 
-function getAllUsers() {
-  return db.get('users').value();
+async function getAllUsers() {
+  const users = await User.find({}).lean();
+  return users.map(u => ({ ...u, id: u._id.toString() }));
 }
 
 // ── Analysis History Functions ───────────────────────────────
-function saveAnalysis(email, codeSnippet, aiResponse, mode = 'single') {
-  const user = getUserByEmail(email);
+async function saveAnalysis(email, codeSnippet, aiResponse, mode = 'single') {
+  const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) return null;
 
   const record = {
-    id: generateId(),
-    codeSnippet: codeSnippet.substring(0, 2000), // Cap stored snippet size
+    codeSnippet: (codeSnippet || '').substring(0, 2000),
     aiResponse,
     mode,
-    timestamp: new Date().toISOString()
+    timestamp: new Date()
   };
 
-  // Ensure analyses array exists (backfill for pre-existing users)
-  if (!Array.isArray(user.analyses)) {
-    db.get('users').find({ id: user.id }).assign({ analyses: [] }).write();
-  }
+  user.analyses.push(record);
+  await user.save();
 
-  db.get('users')
-    .find({ id: user.id })
-    .get('analyses')
-    .push(record)
-    .write();
-
-  return record;
+  // Return the newly added record
+  const saved = user.analyses[user.analyses.length - 1];
+  return saved.toObject();
 }
 
-function getUserAnalyses(email) {
-  const user = getUserByEmail(email);
+async function getUserAnalyses(email) {
+  const user = await User.findOne({ email: email.toLowerCase() }).lean();
   if (!user) return [];
   return user.analyses || [];
 }
 
 module.exports = {
+  connectDB,
   createUser, getUserByEmail, getUserById, updateUser,
   resetDailyIfNeeded, incrementUsage,
   saveVerificationToken, getVerificationToken,
