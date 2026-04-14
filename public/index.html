@@ -289,6 +289,55 @@
 
     /* Pro Badge in header */
     .pro-badge{padding:3px 10px;background:linear-gradient(135deg,var(--accent),#9333ea);border-radius:100px;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#fff;text-transform:uppercase}
+
+    /* ── History Modal ─────────────────────────────────── */
+    .history-btn{padding:6px 14px;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);font-family:'Space Mono',monospace;font-size:.65rem;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+    .history-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+    .history-overlay{display:none;position:fixed;inset:0;background:rgba(10,10,15,.92);backdrop-filter:blur(18px);z-index:150;overflow-y:auto;padding:40px 20px;animation:fadeIn .3s ease}
+    .history-overlay.active{display:block}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+    .history-container{max-width:860px;margin:0 auto}
+    .history-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
+    .history-title{font-family:var(--font-head);font-size:1.5rem;font-weight:800;background:linear-gradient(135deg,#fff 30%,var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .history-count{font-size:.72rem;color:var(--muted);letter-spacing:.06em}
+    .history-close{width:40px;height:40px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+    .history-close:hover{border-color:var(--red);color:var(--red);background:rgba(255,71,87,.08)}
+
+    .history-empty{text-align:center;padding:80px 20px;color:var(--muted)}
+    .history-empty-icon{font-size:3rem;margin-bottom:16px;display:block;opacity:.5}
+    .history-empty-title{font-family:var(--font-head);font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:8px}
+    .history-empty-desc{font-size:.75rem;line-height:1.7}
+
+    .history-list{display:flex;flex-direction:column;gap:12px}
+    .history-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden}
+    .history-item::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity .25s}
+    .history-item:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 32px rgba(124,106,255,.15)}
+    .history-item:hover::before{opacity:1}
+    .history-item.mode-single::before{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .history-item.mode-codebase::before{background:linear-gradient(90deg,var(--yellow),var(--orange))}
+    .history-item.mode-github::before{background:linear-gradient(90deg,#238636,#2ea043)}
+
+    .history-item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .history-mode-tag{padding:3px 10px;border-radius:100px;font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+    .history-mode-tag.single{background:rgba(124,106,255,.12);color:var(--accent2);border:1px solid rgba(124,106,255,.25)}
+    .history-mode-tag.codebase{background:rgba(255,192,72,.1);color:var(--yellow);border:1px solid rgba(255,192,72,.25)}
+    .history-mode-tag.github{background:rgba(35,134,54,.1);color:#2ea043;border:1px solid rgba(35,134,54,.25)}
+    .history-date{font-size:.65rem;color:var(--muted);letter-spacing:.04em}
+
+    .history-snippet{font-size:.72rem;color:var(--text);line-height:1.6;margin-bottom:10px;font-family:var(--font-mono);background:var(--surface2);padding:10px 14px;border-radius:8px;border:1px solid var(--border);max-height:60px;overflow:hidden;white-space:pre-wrap;word-break:break-all}
+
+    .history-score{display:inline-flex;align-items:center;gap:8px;font-size:.7rem}
+    .history-score-dot{width:10px;height:10px;border-radius:50%;border:2px solid}
+    .history-score-val{font-family:var(--font-head);font-weight:800}
+    .history-score-label{color:var(--muted);font-size:.65rem}
+    .history-item-footer{display:flex;align-items:center;justify-content:space-between}
+    .history-view-btn{font-size:.62rem;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;opacity:0;transition:opacity .2s}
+    .history-item:hover .history-view-btn{opacity:1}
+
+    .history-loading{text-align:center;padding:60px 20px;color:var(--muted)}
+    .history-loading .loading-spinner{margin:0 auto 16px}
 </style>
   <script src="https://checkout.razorpay.com/v1/checkout.js">
   // ── Payment System ────────────────────────────────────────
@@ -375,6 +424,7 @@
         <div id="user-name" style="font-family:'Syne',sans-serif;font-size:.78rem;font-weight:700"></div>
         <div id="user-usage" style="font-size:.62rem;color:var(--muted)"></div>
       </div>
+      <button class="history-btn" onclick="openHistory()" id="history-btn">📋 My History</button>
       <button onclick="logout()" style="padding:6px 14px;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);font-family:'Space Mono',monospace;font-size:.65rem;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">Sign Out</button><button id="upgrade-header-btn" onclick="startPayment()" style="padding:6px 16px;background:linear-gradient(135deg,#7c6aff,#9333ea);border:none;border-radius:8px;color:#fff;font-family:'syne',sans-serif;font-size:.7rem;font-weight:700;cursor:pointer">⭐ Upgrade to Pro</button>
     </div>
     <a href="/login.html" id="login-link" style="padding:8px 18px;background:var(--accent);border-radius:8px;color:#fff;font-family:'Syne',sans-serif;font-size:.75rem;font-weight:700;text-decoration:none;display:none">Sign In</a>
@@ -579,6 +629,25 @@
   </div>
 </div>
 
+
+<!-- History Modal Overlay -->
+<div class="history-overlay" id="history-overlay">
+  <div class="history-container">
+    <div class="history-header">
+      <div>
+        <div class="history-title">📋 Analysis History</div>
+        <div class="history-count" id="history-count"></div>
+      </div>
+      <button class="history-close" onclick="closeHistory()">✕</button>
+    </div>
+    <div id="history-content">
+      <div class="history-loading">
+        <div class="loading-spinner"></div>
+        <div>Loading your history...</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Upgrade Banner -->
 <div class="upgrade-banner" id="upgrade-banner">
@@ -1035,6 +1104,126 @@ db_connection = "mysql://admin:admin123@localhost/mydb"
       const btn = document.querySelector('.copy-btn');
       btn.textContent = '✅ Copied!';
       setTimeout(() => btn.textContent = 'Copy Code', 2000);
+    }
+  }
+
+  // ── History System ─────────────────────────────────────────
+  // Store the fetched history for click-to-load
+  let cachedHistory = [];
+
+  async function openHistory() {
+    const overlay = document.getElementById('history-overlay');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    // Show loading
+    document.getElementById('history-content').innerHTML = `
+      <div class="history-loading">
+        <div class="loading-spinner"></div>
+        <div>Loading your history...</div>
+      </div>`;
+
+    try {
+      const res = await authFetch('/api/history');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load history');
+
+      cachedHistory = data.analyses || [];
+      document.getElementById('history-count').textContent = `${cachedHistory.length} past ${cachedHistory.length === 1 ? 'analysis' : 'analyses'}`;
+
+      if (cachedHistory.length === 0) {
+        document.getElementById('history-content').innerHTML = `
+          <div class="history-empty">
+            <span class="history-empty-icon">🔬</span>
+            <div class="history-empty-title">No analyses yet</div>
+            <div class="history-empty-desc">Run your first code analysis and it will appear here.<br>Your history is saved automatically.</div>
+          </div>`;
+        return;
+      }
+
+      document.getElementById('history-content').innerHTML = `<div class="history-list">${cachedHistory.map((a, i) => renderHistoryItem(a, i)).join('')}</div>`;
+
+    } catch (err) {
+      document.getElementById('history-content').innerHTML = `
+        <div class="history-empty">
+          <span class="history-empty-icon">❌</span>
+          <div class="history-empty-title">Could not load history</div>
+          <div class="history-empty-desc">${err.message}</div>
+        </div>`;
+    }
+  }
+
+  function closeHistory() {
+    document.getElementById('history-overlay').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('history-overlay').classList.contains('active')) {
+      closeHistory();
+    }
+  });
+
+  function renderHistoryItem(analysis, index) {
+    const date = new Date(analysis.timestamp);
+    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const modeLabels = { single: '📄 Single File', codebase: '📦 ZIP Upload', github: '🐙 GitHub' };
+    const modeLabel = modeLabels[analysis.mode] || '📄 Single File';
+
+    const snippet = (analysis.codeSnippet || '').substring(0, 120);
+    const score = analysis.aiResponse?.overallHealthScore || '—';
+    const scoreColor = score >= 80 ? '#2ed573' : score >= 60 ? '#ffc048' : score >= 40 ? '#ff7b39' : '#ff4757';
+    const healthLabel = analysis.aiResponse?.healthLabel || '';
+
+    return `
+      <div class="history-item mode-${analysis.mode || 'single'}" onclick="loadHistoryItem(${index})">
+        <div class="history-item-top">
+          <span class="history-mode-tag ${analysis.mode || 'single'}">${modeLabel}</span>
+          <span class="history-date">${dateStr} · ${timeStr}</span>
+        </div>
+        <div class="history-snippet">${escapeHtml(snippet)}${analysis.codeSnippet?.length > 120 ? '...' : ''}</div>
+        <div class="history-item-footer">
+          <div class="history-score">
+            <span class="history-score-dot" style="border-color:${scoreColor}"></span>
+            <span class="history-score-val" style="color:${scoreColor}">${score}</span>
+            <span class="history-score-label">${healthLabel}</span>
+          </div>
+          <span class="history-view-btn">VIEW FULL REPORT →</span>
+        </div>
+      </div>`;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function loadHistoryItem(index) {
+    const item = cachedHistory[index];
+    if (!item || !item.aiResponse) return;
+
+    closeHistory();
+
+    const analysis = item.aiResponse;
+    const mode = item.mode || 'single';
+
+    if (mode === 'single') {
+      // Load code back into the editor
+      if (editor && item.codeSnippet) {
+        editor.setValue(item.codeSnippet);
+      }
+      switchMode('single');
+      renderSingleResults(analysis, 'python');
+    } else {
+      // Codebase / GitHub results
+      switchMode(mode === 'github' ? 'github' : 'codebase');
+      const repoName = analysis.repoName || null;
+      const repoUrl = analysis.repoUrl || null;
+      renderCodebaseResults(analysis, repoName, repoUrl);
     }
   }
 
